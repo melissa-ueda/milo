@@ -142,7 +142,16 @@ export default function HomePage() {
     </div>
 
     <nav className="fixed bottom-0 left-0 right-0 z-20 flex justify-around border-t border-[#e5e9df] bg-white px-5 py-2 md:hidden"><MobileNav id="m-nav-home" icon={<Home size={19}/>} label="Home" active={tab === 'home'} onClick={() => nav('home')}/><MobileNav id="m-nav-pantry" icon={<PackageOpen size={19}/>} label="Pantry" active={tab === 'inventory'} onClick={() => nav('inventory')}/><button id="m-add-receipt" onClick={() => setUploadOpen(true)} className="-mt-6 grid h-13 w-13 place-items-center rounded-full bg-[#1d5b45] text-white shadow-lg"><Plus size={23}/></button><MobileNav id="m-nav-history" icon={<ReceiptText size={19}/>} label="History" active={tab === 'history'} onClick={() => nav('history')}/><MobileNav id="m-nav-profile" icon={<Settings2 size={19}/>} label="Profile" active={tab === 'household'} onClick={() => nav('household')}/></nav>
-    {uploadOpen && <UploadModal uploaded={uploaded} onClose={() => setUploadOpen(false)} onUpload={() => { setUploaded(true); window.setTimeout(() => { setUploadOpen(false); notify('7 items added to your household intelligence.'); }, 850); }} />}
+    {uploadOpen && <UploadModal
+      uploaded={uploaded}
+      onClose={() => setUploadOpen(false)}
+      onUpload={() => { setUploaded(true); window.setTimeout(() => { setUploadOpen(false); notify('7 items added to your household intelligence.'); }, 850); }}
+      onAddManualItem={(item) => {
+        setItems(prev => [item, ...prev]);
+        setUploadOpen(false);
+        notify(`Manually added ${item.name} to pantry.`);
+      }}
+    />}
     {detail && <DetailModal item={detail} onClose={() => setDetail(null)} onRemove={() => { removeItem(detail.name); setDetail(null); notify(`Milo will learn from removing ${detail.name}.`); }} />}
     {selectedPurchase && <PurchaseDetailModal purchase={selectedPurchase} onClose={() => setSelectedPurchase(null)} />}
     {toast && <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#17261f] px-5 py-3 text-sm text-white shadow-xl">{toast}</div>}
@@ -170,7 +179,215 @@ function HistoryView({onUpload, onPurchaseClick}:{onUpload:()=>void; onPurchaseC
   return <><p className="text-sm font-medium text-[#5e7166]">What Milo has learned from</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Shopping history</h1><div className="mt-7 overflow-hidden rounded-2xl border border-[#e2e7de] bg-white">{mockPurchases.map((p,i) => <button id={`purchase-item-${i}`} onClick={() => onPurchaseClick(p)} key={p.date} className="flex w-full items-center text-left gap-4 border-b border-[#edf0eb] p-5 last:border-0 hover:bg-[#fbfdfa] active:bg-[#f4f7f2] transition duration-150 outline-none"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eef5eb] text-[#28704c]"><ShoppingBag size={18}/></span><div className="flex-1"><p className="font-semibold">{p.store}</p><p className="text-sm text-[#738077]">{p.date} · {p.itemCount}</p></div><span className="text-sm font-medium">{p.total}</span><ChevronRight size={18} className="text-[#9aa79f]"/></button>)}</div><button id="scan-receipt-btn" onClick={onUpload} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#b9cbb9] bg-[#fbfdf9] p-7 text-sm font-semibold text-[#347054]"><ScanLine size={19}/>Scan another receipt</button></>
 }
 
-function UploadModal({uploaded,onClose,onUpload}:{uploaded:boolean;onClose:()=>void;onUpload:()=>void}) { return <div className="fixed inset-0 z-40 grid place-items-end bg-[#10231a]/35 p-0 sm:place-items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.12em] text-[#6c7e72]">Teach Milo</p><h2 className="mt-1 text-xl font-semibold">Add what you bought</h2></div><button id="close-upload-modal" onClick={onClose} className="rounded-full p-2 hover:bg-[#f4f6f2]"><X size={19}/></button></div>{uploaded ? <div className="py-12 text-center"><span className="text-5xl">✨</span><h3 className="mt-4 text-lg font-semibold">Receipt understood</h3><p className="mt-2 text-sm text-[#6c7a72]">I found 7 products and updated your predictions.</p></div> : <><button id="upload-receipt-modal-btn" onClick={onUpload} className="mt-6 grid w-full place-items-center rounded-2xl border-2 border-dashed border-[#bcd0bd] bg-[#f7fbf5] p-9 text-center hover:bg-[#f1f8ee]"><span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#2f6e4d] shadow-sm"><ReceiptText size={22}/></span><span className="mt-3 font-semibold">Upload a receipt or bag photo</span><span className="mt-1 text-sm text-[#718077]">Milo will identify products and quantities</span></button><div className="my-5 flex items-center gap-3 text-xs text-[#a0aaa2]"><span className="h-px flex-1 bg-[#e7ebe5]"/>OR<span className="h-px flex-1 bg-[#e7ebe5]"/></div><button id="add-manually-modal-btn" onClick={() => alert('Manual addition is ready for the next demo step.')} className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#dce5da] py-3 text-sm font-semibold"><Plus size={16}/>Add products manually</button></>}</div></div> }
+function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boolean;onClose:()=>void;onUpload:()=>void;onAddManualItem:(item:Item)=>void}) {
+  const [isManual, setIsManual] = useState(false);
+  const [name, setName] = useState('');
+  const [emoji, setEmoji] = useState('🍎');
+  const [amount, setAmount] = useState('1 pack');
+  const [remaining, setRemaining] = useState('About half left');
+  const [due, setDue] = useState('Friday');
+  const [cadence, setCadence] = useState('Usually every 7 days');
+
+  const commonEmojis = ['🍎', '🥛', '🥚', '🍞', '☕', '🫒', '🍌', '🧀', '🍗', '🥦', '🥫', '🧻'];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    const status = due === 'Friday' || due === 'Saturday' ? 'Soon' : 'This week';
+
+    const newItem: Item = {
+      name: name.trim(),
+      emoji,
+      amount,
+      remaining,
+      due,
+      confidence: 100,
+      cadence,
+      status,
+      selected: true
+    };
+    onAddManualItem(newItem);
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-end bg-[#10231a]/35 p-0 sm:place-items-center sm:p-5">
+      <div className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[.12em] text-[#6c7e72]">Teach Milo</p>
+            <h2 className="mt-1 text-xl font-semibold">{isManual ? 'Add product manually' : 'Add what you bought'}</h2>
+          </div>
+          <button id="close-upload-modal" onClick={onClose} className="rounded-full p-2 hover:bg-[#f4f6f2] transition duration-200">
+            <X size={19}/>
+          </button>
+        </div>
+
+        {isManual ? (
+          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+            <div>
+              <label htmlFor="manual-name" className="block text-sm font-semibold text-[#596b60]">Product Name</label>
+              <input
+                id="manual-name"
+                type="text"
+                required
+                placeholder="e.g. Greek Yogurt, Avocados"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3.5 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460] transition duration-150"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[#596b60]">Select Icon / Emoji</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {commonEmojis.map(em => (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => setEmoji(em)}
+                    className={`grid h-10 w-10 place-items-center text-xl rounded-lg border transition duration-150 ${emoji === em ? 'border-[#28704c] bg-[#eef5eb] scale-110' : 'border-[#e2e7de] bg-[#fbfdf9] hover:bg-[#f2f5f0]'}`}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
+              <input
+                id="manual-custom-emoji"
+                type="text"
+                maxLength={2}
+                placeholder="Or type custom emoji..."
+                value={emoji}
+                onChange={e => setEmoji(e.target.value)}
+                className="mt-2 w-full max-w-[200px] text-center rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-2 py-1.5 text-sm outline-none focus:border-[#4b8460] transition duration-150"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="manual-amount" className="block text-sm font-semibold text-[#596b60]">Pack Size / Qty</label>
+                <input
+                  id="manual-amount"
+                  type="text"
+                  required
+                  placeholder="e.g. 500g, 6-pack"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3.5 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460] transition duration-150"
+                />
+              </div>
+              <div>
+                <label htmlFor="manual-remaining" className="block text-sm font-semibold text-[#596b60]">Current Stock</label>
+                <select
+                  id="manual-remaining"
+                  value={remaining}
+                  onChange={e => setRemaining(e.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3.5 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460] transition duration-150"
+                >
+                  <option>Full</option>
+                  <option>About half left</option>
+                  <option>About 1/4 left</option>
+                  <option>Empty</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="manual-due" className="block text-sm font-semibold text-[#596b60]">Next Due Day</label>
+                <select
+                  id="manual-due"
+                  value={due}
+                  onChange={e => setDue(e.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3.5 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460] transition duration-150"
+                >
+                  <option>Monday</option>
+                  <option>Tuesday</option>
+                  <option>Wednesday</option>
+                  <option>Thursday</option>
+                  <option>Friday</option>
+                  <option>Saturday</option>
+                  <option>Sunday</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="manual-cadence" className="block text-sm font-semibold text-[#596b60]">How often?</label>
+                <select
+                  id="manual-cadence"
+                  value={cadence}
+                  onChange={e => setCadence(e.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3.5 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460] transition duration-150"
+                >
+                  <option>Usually every 3 days</option>
+                  <option>Usually every 5 days</option>
+                  <option>Usually every 7 days</option>
+                  <option>Usually every 10 days</option>
+                  <option>Usually every 14 days</option>
+                  <option>Usually every 30 days</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="pt-3 flex gap-3">
+              <button
+                id="cancel-manual-btn"
+                type="button"
+                onClick={() => setIsManual(false)}
+                className="flex-1 rounded-xl border border-[#dce5da] py-3 text-sm font-semibold text-[#596b60] hover:bg-[#f4f6f2] transition duration-150"
+              >
+                Back
+              </button>
+              <button
+                id="submit-manual-btn"
+                type="submit"
+                className="flex-1 rounded-xl bg-[#1d5b45] py-3 text-sm font-semibold text-white hover:bg-[#174a38] transition duration-150"
+              >
+                Add Item
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            {uploaded ? (
+              <div className="py-12 text-center">
+                <span className="text-5xl">✨</span>
+                <h3 className="mt-4 text-lg font-semibold">Receipt understood</h3>
+                <p className="mt-2 text-sm text-[#6c7a72]">I found 7 products and updated your predictions.</p>
+              </div>
+            ) : (
+              <>
+                <button
+                  id="upload-receipt-modal-btn"
+                  onClick={onUpload}
+                  className="mt-6 grid w-full place-items-center rounded-2xl border-2 border-dashed border-[#bcd0bd] bg-[#f7fbf5] p-9 text-center hover:bg-[#f1f8ee] transition duration-150 outline-none"
+                >
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#2f6e4d] shadow-sm">
+                    <ReceiptText size={22}/>
+                  </span>
+                  <span className="mt-3 font-semibold text-base text-[#17261f]">Upload a receipt or bag photo</span>
+                  <span className="mt-1 text-sm text-[#718077]">Milo will identify products and quantities</span>
+                </button>
+                <div className="my-5 flex items-center gap-3 text-xs text-[#a0aaa2] font-semibold">
+                  <span className="h-px flex-1 bg-[#e7ebe5]"/>
+                  OR
+                  <span className="h-px flex-1 bg-[#e7ebe5]"/>
+                </div>
+                <button
+                  id="add-manually-modal-btn"
+                  onClick={() => setIsManual(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#dce5da] py-3 text-sm font-semibold text-[#1d5b45] hover:bg-[#f4f6f2] transition duration-150 outline-none"
+                >
+                  <Plus size={16}/>
+                  Add products manually
+                </button>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function DetailModal({item,onClose,onRemove}:{item:Item;onClose:()=>void;onRemove:()=>void}) { return <div className="fixed inset-0 z-40 grid place-items-end bg-[#10231a]/35 sm:place-items-center"><div className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl"><div className="flex justify-between"><span className="text-4xl">{item.emoji}</span><button id="close-detail-modal" onClick={onClose} className="rounded-full p-2 hover:bg-[#f4f6f2]"><X size={19}/></button></div><h2 className="mt-4 text-2xl font-semibold">{item.name}</h2><p className="mt-1 text-sm text-[#718077]">Milo is {item.confidence}% confident in this prediction.</p><div className="mt-6 rounded-2xl bg-[#eff6ec] p-4"><div className="flex items-center gap-2 text-sm font-semibold text-[#28704c]"><Sparkles size={16}/>Why this is on your list</div><p className="mt-2 text-sm leading-6 text-[#52705c]">Your household typically uses {item.name.toLowerCase()} {item.cadence.replace('Usually ', '').toLowerCase()}. You last bought it 4 days ago and have {item.remaining.toLowerCase()}. At your next likely shop tomorrow, you&apos;ll be close to running out by {item.due}.</p></div><button id={`remove-item-btn-${item.name.replace(/\s+/g, '-').toLowerCase()}`} onClick={onRemove} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-[#9d4a3d] hover:bg-[#fdf1ef] transition duration-150"><Trash2 size={16}/>I don&apos;t need this</button></div></div> }
 
