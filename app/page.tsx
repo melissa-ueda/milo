@@ -108,6 +108,8 @@ export default function HomePage() {
   const [detail, setDetail] = useState<Item | null>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [toast, setToast] = useState('');
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [unread, setUnread] = useState(true);
   const [household, setHousehold] = useState({ adults: '2', children: '0', pets: '1', cadence: 'Weekly', day: 'Friday', cooking: 'Most nights', preferences: 'Vegetarian-friendly' });
   const selected = useMemo(() => items.filter(i => i.selected), [items]);
 
@@ -117,11 +119,69 @@ export default function HomePage() {
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2600); };
   const nav = (target: 'home' | 'inventory' | 'history' | 'household') => setTab(target);
 
+  const openUpload = () => {
+    setUploaded(false);
+    setUploadOpen(true);
+  };
+
   return <main className="min-h-screen bg-[#f7f8f4] text-[#17261f]">
     <header className="sticky top-0 z-20 border-b border-[#e5e9df] bg-[#f7f8f4]/90 backdrop-blur">
-      <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-5">
+      <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-5 relative">
         <button id="logo-btn" onClick={() => nav('home')} className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#1d5b45] text-lg text-white">m</span><span className="text-lg font-semibold tracking-tight">milo</span></button>
-        <div className="flex items-center gap-3"><button id="notif-btn" className="relative rounded-full p-2 hover:bg-white"><Bell size={19}/><span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#e7794b]"/></button><button id="profile-btn" className="flex items-center gap-2 rounded-full border border-[#dce3d8] bg-white py-1.5 pl-2 pr-3 text-sm font-medium"><span className="grid h-7 w-7 place-items-center rounded-full bg-[#dceedd] text-xs">MU</span>Melissa<ChevronDown size={15}/></button></div>
+        <div className="flex items-center gap-3">
+          <button
+            id="notif-btn"
+            onClick={() => {
+              setNotifOpen(!notifOpen);
+              setUnread(false);
+            }}
+            className="relative rounded-full p-2 hover:bg-[#edf0eb] transition duration-200 text-[#17261f]"
+          >
+            <Bell size={19}/>
+            {unread && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#e7794b]"/>}
+          </button>
+          <button id="profile-btn" className="flex items-center gap-2 rounded-full border border-[#dce3d8] bg-white py-1.5 pl-2 pr-3 text-sm font-medium"><span className="grid h-7 w-7 place-items-center rounded-full bg-[#dceedd] text-xs">MU</span>Melissa<ChevronDown size={15}/></button>
+        </div>
+
+        {notifOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} />
+            <div className="absolute right-5 top-[68px] z-40 w-72 sm:w-80 rounded-2xl border border-[#e2e7de] bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between pb-3 border-b border-[#edf0eb]">
+                <h3 className="font-bold text-sm">Notifications</h3>
+                <button onClick={() => setUnread(false)} className="text-xs font-semibold text-[#28704c] hover:underline">
+                  Mark all read
+                </button>
+              </div>
+              <div className="mt-2 divide-y divide-[#f4f6f2] max-h-60 overflow-y-auto">
+                <div className="py-2.5 flex items-start gap-2.5 text-xs text-left">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#eef5eb] text-[#28704c] mt-0.5">🥛</span>
+                  <div>
+                    <p className="font-semibold text-[#17261f]">Whole milk is running low</p>
+                    <p className="mt-0.5 text-[#718077]">Milo predicted you have 1/4 left. Added to Friday list.</p>
+                    <span className="mt-1 block text-[10px] text-[#a0aaa2]">1 hour ago</span>
+                  </div>
+                </div>
+                <div className="py-2.5 flex items-start gap-2.5 text-xs text-left">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#fff1dc] text-[#9a6419] mt-0.5">✨</span>
+                  <div>
+                    <p className="font-semibold text-[#17261f]">New pattern recognized</p>
+                    <p className="mt-0.5 text-[#718077]">Sourdough usage has increased from every 7 days to every 5 days.</p>
+                    <span className="mt-1 block text-[10px] text-[#a0aaa2]">Yesterday</span>
+                  </div>
+                </div>
+                <div className="py-2.5 flex items-start gap-2.5 text-xs text-left">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#eef5eb] text-[#28704c] mt-0.5">📋</span>
+                  <div>
+                    <p className="font-semibold text-[#17261f]">Shopping list ready</p>
+                    <p className="mt-0.5 text-[#718077]">Milo prepared recommendations for your upcoming shop.</p>
+                    <span className="mt-1 block text-[10px] text-[#a0aaa2]">2 days ago</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </header>
 
@@ -134,18 +194,18 @@ export default function HomePage() {
       </nav><div className="mt-10 rounded-2xl bg-[#e7f2e7] p-4"><Sparkles size={18} className="text-[#317051]"/><p className="mt-2 text-sm font-semibold">Milo is learning</p><p className="mt-1 text-xs leading-5 text-[#5c7162]">You&apos;ve helped improve 14 predictions this month.</p></div></aside>
 
       <section className="min-w-0 pb-20">
-        {tab === 'home' && <HomeView selected={selected} items={items} onToggle={toggle} onDetail={setDetail} onUpload={() => setUploadOpen(true)} onList={() => notify(`${selected.length} items are ready for your shopping list.`)} />}
-        {tab === 'inventory' && <InventoryView items={items} onDetail={setDetail} onUpload={() => setUploadOpen(true)} />}
-        {tab === 'history' && <HistoryView onUpload={() => setUploadOpen(true)} onPurchaseClick={setSelectedPurchase} />}
+        {tab === 'home' && <HomeView selected={selected} items={items} onToggle={toggle} onDetail={setDetail} onUpload={openUpload} onList={() => notify(`${selected.length} items are ready for your shopping list.`)} />}
+        {tab === 'inventory' && <InventoryView items={items} onDetail={setDetail} onUpload={openUpload} />}
+        {tab === 'history' && <HistoryView onUpload={openUpload} onPurchaseClick={setSelectedPurchase} />}
         {tab === 'household' && <HouseholdView household={household} onChange={(field, value) => setHousehold(current => ({ ...current, [field]: value }))} onSave={() => notify('Household settings saved. Milo will use these for future predictions.')} />}
       </section>
     </div>
 
-    <nav className="fixed bottom-0 left-0 right-0 z-20 flex justify-around border-t border-[#e5e9df] bg-white px-5 py-2 md:hidden"><MobileNav id="m-nav-home" icon={<Home size={19}/>} label="Home" active={tab === 'home'} onClick={() => nav('home')}/><MobileNav id="m-nav-pantry" icon={<PackageOpen size={19}/>} label="Pantry" active={tab === 'inventory'} onClick={() => nav('inventory')}/><button id="m-add-receipt" onClick={() => setUploadOpen(true)} className="-mt-6 grid h-13 w-13 place-items-center rounded-full bg-[#1d5b45] text-white shadow-lg"><Plus size={23}/></button><MobileNav id="m-nav-history" icon={<ReceiptText size={19}/>} label="History" active={tab === 'history'} onClick={() => nav('history')}/><MobileNav id="m-nav-profile" icon={<Settings2 size={19}/>} label="Profile" active={tab === 'household'} onClick={() => nav('household')}/></nav>
+    <nav className="fixed bottom-0 left-0 right-0 z-20 flex justify-around border-t border-[#e5e9df] bg-white px-5 py-2 md:hidden"><MobileNav id="m-nav-home" icon={<Home size={19}/>} label="Home" active={tab === 'home'} onClick={() => nav('home')}/><MobileNav id="m-nav-pantry" icon={<PackageOpen size={19}/>} label="Pantry" active={tab === 'inventory'} onClick={() => nav('inventory')}/><button id="m-add-receipt" onClick={openUpload} className="-mt-6 grid h-13 w-13 place-items-center rounded-full bg-[#1d5b45] text-white shadow-lg"><Plus size={23}/></button><MobileNav id="m-nav-history" icon={<ReceiptText size={19}/>} label="History" active={tab === 'history'} onClick={() => nav('history')}/><MobileNav id="m-nav-profile" icon={<Settings2 size={19}/>} label="Profile" active={tab === 'household'} onClick={() => nav('household')}/></nav>
     {uploadOpen && <UploadModal
       uploaded={uploaded}
-      onClose={() => setUploadOpen(false)}
-      onUpload={() => { setUploaded(true); window.setTimeout(() => { setUploadOpen(false); notify('7 items added to your household intelligence.'); }, 850); }}
+      onClose={() => { setUploadOpen(false); setUploaded(false); }}
+      onUpload={() => { setUploaded(true); window.setTimeout(() => { setUploadOpen(false); setUploaded(false); notify('7 items added to your household intelligence.'); }, 1200); }}
       onAddManualItem={(item) => {
         setItems(prev => [item, ...prev]);
         setUploadOpen(false);
@@ -181,6 +241,7 @@ function HistoryView({onUpload, onPurchaseClick}:{onUpload:()=>void; onPurchaseC
 
 function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boolean;onClose:()=>void;onUpload:()=>void;onAddManualItem:(item:Item)=>void}) {
   const [isManual, setIsManual] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🍎');
   const [amount, setAmount] = useState('1 pack');
@@ -189,6 +250,20 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
   const [cadence, setCadence] = useState('Usually every 7 days');
 
   const commonEmojis = ['🍎', '🥛', '🥚', '🍞', '☕', '🫒', '🍌', '🧀', '🍗', '🥦', '🥫', '🧻'];
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setIsUploading(true);
+      window.setTimeout(() => {
+        setIsUploading(false);
+        onUpload();
+      }, 1500);
+    }
+  };
+
+  const triggerFilePicker = () => {
+    document.getElementById('receipt-file-picker')?.click();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,7 +291,9 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[.12em] text-[#6c7e72]">Teach Milo</p>
-            <h2 className="mt-1 text-xl font-semibold">{isManual ? 'Add product manually' : 'Add what you bought'}</h2>
+            <h2 className="mt-1 text-xl font-semibold">
+              {isManual ? 'Add product manually' : isUploading ? 'Scanning receipt...' : 'Add what you bought'}
+            </h2>
           </div>
           <button id="close-upload-modal" onClick={onClose} className="rounded-full p-2 hover:bg-[#f4f6f2] transition duration-200">
             <X size={19}/>
@@ -346,6 +423,17 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
               </button>
             </div>
           </form>
+        ) : isUploading ? (
+          <div className="py-12 text-center flex flex-col items-center">
+            <span className="relative flex h-12 w-12">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2c714e] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-12 w-12 bg-[#1d5b45] items-center justify-center text-white">
+                <ReceiptText size={20} className="animate-bounce" />
+              </span>
+            </span>
+            <h3 className="mt-6 text-lg font-semibold text-[#17261f]">Analyzing receipt...</h3>
+            <p className="mt-2 text-sm text-[#718077]">Milo is identifying products and stock quantities.</p>
+          </div>
         ) : (
           <>
             {uploaded ? (
@@ -353,12 +441,26 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
                 <span className="text-5xl">✨</span>
                 <h3 className="mt-4 text-lg font-semibold">Receipt understood</h3>
                 <p className="mt-2 text-sm text-[#6c7a72]">I found 7 products and updated your predictions.</p>
+                <button
+                  id="done-upload-btn"
+                  onClick={onClose}
+                  className="mt-6 w-full rounded-xl bg-[#1d5b45] py-3 text-sm font-semibold text-white hover:bg-[#174a38] transition duration-150 outline-none"
+                >
+                  Done
+                </button>
               </div>
             ) : (
               <>
+                <input
+                  type="file"
+                  id="receipt-file-picker"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
                 <button
                   id="upload-receipt-modal-btn"
-                  onClick={onUpload}
+                  onClick={triggerFilePicker}
                   className="mt-6 grid w-full place-items-center rounded-2xl border-2 border-dashed border-[#bcd0bd] bg-[#f7fbf5] p-9 text-center hover:bg-[#f1f8ee] transition duration-150 outline-none"
                 >
                   <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#2f6e4d] shadow-sm">
