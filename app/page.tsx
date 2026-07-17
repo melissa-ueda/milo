@@ -124,7 +124,7 @@ export default function HomePage() {
     setUploadOpen(true);
   };
 
-  return <main className="min-h-screen bg-[#f7f8f4] text-[#17261f]">
+  return <main className="mobile-shell relative mx-auto min-h-screen w-full max-w-[430px] overflow-x-hidden bg-[#f7f8f4] text-[#17261f] shadow-[0_0_45px_rgba(28,54,39,0.12)]">
     <header className="sticky top-0 z-20 border-b border-[#e5e9df] bg-[#f7f8f4]/90 backdrop-blur">
       <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-5 relative">
         <button id="logo-btn" onClick={() => nav('home')} className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#1d5b45] text-lg text-white">m</span><span className="text-lg font-semibold tracking-tight">milo</span></button>
@@ -146,7 +146,7 @@ export default function HomePage() {
         {notifOpen && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} />
-            <div className="absolute right-5 top-[68px] z-40 w-72 sm:w-80 rounded-2xl border border-[#e2e7de] bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute right-4 top-[68px] z-40 w-[calc(100%-2rem)] rounded-2xl border border-[#e2e7de] bg-white p-4 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center justify-between pb-3 border-b border-[#edf0eb]">
                 <h3 className="font-bold text-sm">Notifications</h3>
                 <button onClick={() => setUnread(false)} className="text-xs font-semibold text-[#28704c] hover:underline">
@@ -185,8 +185,8 @@ export default function HomePage() {
       </div>
     </header>
 
-    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-5 py-7 md:grid-cols-[176px_1fr]">
-      <aside className="hidden md:block"><nav className="space-y-1 text-sm font-medium text-[#617067]">
+    <div className="mx-auto block px-4 py-6">
+      <aside className="hidden"><nav className="space-y-1 text-sm font-medium text-[#617067]">
         <NavButton id="nav-home" icon={<Home size={18}/>} label="Home" active={tab === 'home'} onClick={() => nav('home')}/>
         <NavButton id="nav-pantry" icon={<PackageOpen size={18}/>} label="My pantry" active={tab === 'inventory'} onClick={() => nav('inventory')}/>
         <NavButton id="nav-history" icon={<ReceiptText size={18}/>} label="Shopping history" active={tab === 'history'} onClick={() => nav('history')}/>
@@ -201,7 +201,7 @@ export default function HomePage() {
       </section>
     </div>
 
-    <nav className="fixed bottom-0 left-0 right-0 z-20 flex justify-around border-t border-[#e5e9df] bg-white px-5 py-2 md:hidden"><MobileNav id="m-nav-home" icon={<Home size={19}/>} label="Home" active={tab === 'home'} onClick={() => nav('home')}/><MobileNav id="m-nav-pantry" icon={<PackageOpen size={19}/>} label="Pantry" active={tab === 'inventory'} onClick={() => nav('inventory')}/><button id="m-add-receipt" onClick={openUpload} className="-mt-6 grid h-13 w-13 place-items-center rounded-full bg-[#1d5b45] text-white shadow-lg"><Plus size={23}/></button><MobileNav id="m-nav-history" icon={<ReceiptText size={19}/>} label="History" active={tab === 'history'} onClick={() => nav('history')}/><MobileNav id="m-nav-profile" icon={<Settings2 size={19}/>} label="Profile" active={tab === 'household'} onClick={() => nav('household')}/></nav>
+    <nav className="fixed bottom-0 left-1/2 z-20 flex w-full max-w-[430px] -translate-x-1/2 justify-around border-t border-[#e5e9df] bg-white px-5 py-2"><MobileNav id="m-nav-home" icon={<Home size={19}/>} label="Home" active={tab === 'home'} onClick={() => nav('home')}/><MobileNav id="m-nav-pantry" icon={<PackageOpen size={19}/>} label="Pantry" active={tab === 'inventory'} onClick={() => nav('inventory')}/><button id="m-add-receipt" onClick={openUpload} className="-mt-6 grid h-13 w-13 place-items-center rounded-full bg-[#1d5b45] text-white shadow-lg"><Plus size={23}/></button><MobileNav id="m-nav-history" icon={<ReceiptText size={19}/>} label="History" active={tab === 'history'} onClick={() => nav('history')}/><MobileNav id="m-nav-profile" icon={<Settings2 size={19}/>} label="Profile" active={tab === 'household'} onClick={() => nav('household')}/></nav>
     {uploadOpen && <UploadModal
       uploaded={uploaded}
       onClose={() => { setUploadOpen(false); setUploaded(false); }}
@@ -286,8 +286,9 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
   };
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-end bg-[#10231a]/35 p-0 sm:place-items-center sm:p-5">
-      <div className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-40 flex justify-center bg-[#10231a]/35">
+      <div className="flex w-full max-w-[430px] items-end">
+      <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[.12em] text-[#6c7e72]">Teach Milo</p>
@@ -487,16 +488,18 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
           </>
         )}
       </div>
+      </div>
     </div>
   );
 }
 
-function DetailModal({item,onClose,onRemove}:{item:Item;onClose:()=>void;onRemove:()=>void}) { return <div className="fixed inset-0 z-40 grid place-items-end bg-[#10231a]/35 sm:place-items-center"><div className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl"><div className="flex justify-between"><span className="text-4xl">{item.emoji}</span><button id="close-detail-modal" onClick={onClose} className="rounded-full p-2 hover:bg-[#f4f6f2]"><X size={19}/></button></div><h2 className="mt-4 text-2xl font-semibold">{item.name}</h2><p className="mt-1 text-sm text-[#718077]">Milo is {item.confidence}% confident in this prediction.</p><div className="mt-6 rounded-2xl bg-[#eff6ec] p-4"><div className="flex items-center gap-2 text-sm font-semibold text-[#28704c]"><Sparkles size={16}/>Why this is on your list</div><p className="mt-2 text-sm leading-6 text-[#52705c]">Your household typically uses {item.name.toLowerCase()} {item.cadence.replace('Usually ', '').toLowerCase()}. You last bought it 4 days ago and have {item.remaining.toLowerCase()}. At your next likely shop tomorrow, you&apos;ll be close to running out by {item.due}.</p></div><button id={`remove-item-btn-${item.name.replace(/\s+/g, '-').toLowerCase()}`} onClick={onRemove} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-[#9d4a3d] hover:bg-[#fdf1ef] transition duration-150"><Trash2 size={16}/>I don&apos;t need this</button></div></div> }
+function DetailModal({item,onClose,onRemove}:{item:Item;onClose:()=>void;onRemove:()=>void}) { return <div className="fixed inset-0 z-40 flex justify-center bg-[#10231a]/35"><div className="flex w-full max-w-[430px] items-end"><div className="w-full rounded-t-3xl bg-white p-6 shadow-2xl"><div className="flex justify-between"><span className="text-4xl">{item.emoji}</span><button id="close-detail-modal" onClick={onClose} className="rounded-full p-2 hover:bg-[#f4f6f2]"><X size={19}/></button></div><h2 className="mt-4 text-2xl font-semibold">{item.name}</h2><p className="mt-1 text-sm text-[#718077]">Milo is {item.confidence}% confident in this prediction.</p><div className="mt-6 rounded-2xl bg-[#eff6ec] p-4"><div className="flex items-center gap-2 text-sm font-semibold text-[#28704c]"><Sparkles size={16}/>Why this is on your list</div><p className="mt-2 text-sm leading-6 text-[#52705c]">Your household typically uses {item.name.toLowerCase()} {item.cadence.replace('Usually ', '').toLowerCase()}. You last bought it 4 days ago and have {item.remaining.toLowerCase()}. At your next likely shop tomorrow, you&apos;ll be close to running out by {item.due}.</p></div><button id={`remove-item-btn-${item.name.replace(/\s+/g, '-').toLowerCase()}`} onClick={onRemove} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-[#9d4a3d] hover:bg-[#fdf1ef] transition duration-150"><Trash2 size={16}/>I don&apos;t need this</button></div></div></div> }
 
 function PurchaseDetailModal({ purchase, onClose }: { purchase: Purchase; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-40 grid place-items-end bg-[#10231a]/35 p-0 sm:place-items-center sm:p-5">
-      <div className="w-full max-w-md max-h-[85vh] flex flex-col rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl animate-in fade-in slide-in-from-bottom duration-300">
+    <div className="fixed inset-0 z-40 flex justify-center bg-[#10231a]/35">
+      <div className="flex w-full max-w-[430px] items-end">
+      <div className="flex w-full max-h-[85vh] flex-col rounded-t-3xl bg-white p-6 shadow-2xl animate-in fade-in slide-in-from-bottom duration-300">
         <div className="flex items-center justify-between pb-4 border-b border-[#edf0eb]">
           <div>
             <div className="flex items-center gap-2">
@@ -544,6 +547,7 @@ function PurchaseDetailModal({ purchase, onClose }: { purchase: Purchase; onClos
             <span>Milo successfully learned your consumption rate from this receipt.</span>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
