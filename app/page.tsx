@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Bell, Check, ChevronDown, ChevronRight, CircleHelp, Coffee, Home, Leaf, MoreHorizontal, PackageOpen, Plus, ReceiptText, ScanLine, Settings2, ShoppingBag, Sparkles, Trash2, Upload, X } from 'lucide-react';
 
 type Item = { name: string; emoji: string; amount: string; remaining: string; due: string; confidence: number; cadence: string; status: 'Soon' | 'This week' | 'Later'; selected: boolean };
@@ -110,6 +110,7 @@ export default function HomePage() {
   const [toast, setToast] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
   const [unread, setUnread] = useState(true);
+  const [onboarding, setOnboarding] = useState(true);
   const [household, setHousehold] = useState({ adults: '2', children: '0', pets: '1', cadence: 'Weekly', day: 'Friday', cooking: 'Most nights', preferences: 'Vegetarian-friendly' });
   const selected = useMemo(() => items.filter(i => i.selected), [items]);
 
@@ -123,6 +124,17 @@ export default function HomePage() {
     setUploaded(false);
     setUploadOpen(true);
   };
+
+  useEffect(() => {
+    if (window.localStorage.getItem('milo-onboarded') === 'true') setOnboarding(false);
+  }, []);
+
+  const startApp = () => {
+    window.localStorage.setItem('milo-onboarded', 'true');
+    setOnboarding(false);
+  };
+
+  if (onboarding) return <main className="mobile-shell relative mx-auto min-h-screen w-full max-w-[430px] overflow-x-hidden bg-[#f7f8f4] text-[#17261f] shadow-[0_0_45px_rgba(28,54,39,0.12)]"><OnboardingView onGetStarted={startApp} /></main>;
 
   return <main className="mobile-shell relative mx-auto min-h-screen w-full max-w-[430px] overflow-x-hidden bg-[#f7f8f4] text-[#17261f] shadow-[0_0_45px_rgba(28,54,39,0.12)]">
     <header className="sticky top-0 z-20 border-b border-[#e5e9df] bg-[#f7f8f4]/90 backdrop-blur">
@@ -216,6 +228,33 @@ export default function HomePage() {
     {selectedPurchase && <PurchaseDetailModal purchase={selectedPurchase} onClose={() => setSelectedPurchase(null)} />}
     {toast && <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#17261f] px-5 py-3 text-sm text-white shadow-xl">{toast}</div>}
   </main>;
+}
+
+function OnboardingView({ onGetStarted }: { onGetStarted: () => void }) {
+  return <div className="flex min-h-screen flex-col px-6 pb-8 pt-8">
+    <div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#1d5b45] text-lg text-white">m</span><span className="text-lg font-semibold tracking-tight">milo</span></div>
+    <div className="flex flex-1 flex-col justify-center py-12">
+      <div className="relative mx-auto grid h-52 w-52 place-items-center rounded-[52px] bg-[#e4f1e3]">
+        <div className="absolute -right-2 top-5 grid h-12 w-12 place-items-center rounded-2xl bg-white text-xl shadow-sm">✨</div>
+        <div className="absolute -left-3 bottom-7 grid h-11 w-11 place-items-center rounded-2xl bg-white text-xl shadow-sm">🥬</div>
+        <div className="grid h-28 w-28 place-items-center rounded-[34px] bg-[#1d5b45] text-6xl text-white shadow-lg">m</div>
+      </div>
+      <p className="mt-12 text-center text-sm font-semibold uppercase tracking-[.16em] text-[#5e7166]">Meet your household intelligence</p>
+      <h1 className="mt-3 text-center text-[38px] font-semibold leading-[1.05] tracking-[-.04em]">An AI that remembers so you don&apos;t have to.</h1>
+      <p className="mx-auto mt-5 max-w-sm text-center text-[15px] leading-6 text-[#67786e]">Milo learns how your home consumes, then turns everyday patterns into simple, timely decisions that save money, time, and waste.</p>
+      <div className="mt-8 space-y-3">
+        <OnboardingPoint icon={<Leaf size={17}/>} title="See the bigger picture" text="Groceries, energy, water, and waste in one calm view." />
+        <OnboardingPoint icon={<Sparkles size={17}/>} title="Get useful nudges" text="Milo surfaces what matters before it becomes a problem." />
+        <OnboardingPoint icon={<Check size={17}/>} title="Teach it your way" text="Start with a receipt or a quick household setup." />
+      </div>
+    </div>
+    <button id="get-started-btn" onClick={onGetStarted} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1d5b45] px-5 py-4 text-base font-semibold text-white shadow-sm transition hover:bg-[#174a38]">Get started <ArrowRight size={18}/></button>
+    <p className="mt-4 text-center text-xs text-[#829087]">Your data stays yours. You&apos;re in control of what Milo learns.</p>
+  </div>
+}
+
+function OnboardingPoint({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+  return <div className="flex items-start gap-3 rounded-2xl border border-[#e2e7de] bg-white/75 p-3.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#eef5eb] text-[#28704c]">{icon}</span><div><p className="text-sm font-semibold">{title}</p><p className="mt-0.5 text-xs leading-5 text-[#718077]">{text}</p></div></div>
 }
 
 function HomeView({ selected, items, onToggle, onDetail, onUpload, onList }: { selected: Item[]; items: Item[]; onToggle: (n:string)=>void; onDetail:(i:Item)=>void; onUpload:()=>void; onList:()=>void }) { return <>
