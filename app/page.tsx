@@ -1,7 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Bell, Check, ChevronRight, CircleHelp, Coffee, Home, Leaf, MoreHorizontal, PackageOpen, Plus, ReceiptText, ScanLine, Settings2, ShoppingBag, Sparkles, Trash2, Upload, X } from 'lucide-react';
+import { ReviewSheet } from '@/components/ReviewSheet';
+import { categoryEmoji } from '@/lib/categories';
+import {
+  deleteReceipt,
+  formatCurrency,
+  formatReceiptDate,
+  getAllReceipts,
+  getReceiptItems,
+  saveReceipt,
+  toReviewItems,
+} from '@/lib/db/receipts';
+import { getPredictions, getNextShopLikelihood, predictionToDisplayItem, recalculatePredictions } from '@/lib/inventory/predictor';
+import { parseReceiptImage } from '@/lib/image/upload';
+import type { ParsedReceipt, ReviewItem } from '@/lib/types';
 
 type Item = { name: string; emoji: string; amount: string; remaining: string; due: string; confidence: number; cadence: string; status: 'Soon' | 'This week' | 'Later'; selected: boolean };
 
@@ -45,6 +59,7 @@ interface PurchaseItem {
 }
 
 interface Purchase {
+  id: string;
   date: string;
   store: string;
   itemCount: string;
@@ -54,6 +69,7 @@ interface Purchase {
 
 const mockPurchases: Purchase[] = [
   {
+    id: 'mock-1',
     date: 'Jul 11',
     store: 'REWE',
     itemCount: '18 items',
@@ -80,6 +96,7 @@ const mockPurchases: Purchase[] = [
     ]
   },
   {
+    id: 'mock-2',
     date: 'Jul 4',
     store: 'REWE',
     itemCount: '14 items',
@@ -100,6 +117,7 @@ const mockPurchases: Purchase[] = [
     ]
   },
   {
+    id: 'mock-3',
     date: 'Jun 27',
     store: 'EDEKA',
     itemCount: '21 items',
@@ -127,10 +145,15 @@ const mockPurchases: Purchase[] = [
 export default function HomePage() {
   const [items, setItems] = useState(starterItems);
   const [extraShoppingItems, setExtraShoppingItems] = useState<Item[]>([]);
-  const [purchases, setPurchases] = useState(mockPurchases);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [tab, setTab] = useState<'home' | 'inventory' | 'history' | 'household'>('home');
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
+  const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
+  const [receiptError, setReceiptError] = useState('');
+  const [reviewReceipt, setReviewReceipt] = useState<ParsedReceipt | null>(null);
+  const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
+  const [reviewImageBlob, setReviewImageBlob] = useState<Blob | null>(null);
+  const [savingReceipt, setSavingReceipt] = useState(false);
   const [detail, setDetail] = useState<Item | null>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [toast, setToast] = useState('');
@@ -140,7 +163,9 @@ export default function HomePage() {
   const [onboarding, setOnboarding] = useState(true);
   const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'profile' | 'first-item'>('welcome');
   const [household, setHousehold] = useState({ name: '', adults: '2', children: '0', pets: '1', cadence: 'Weekly', day: 'Friday', cooking: 'Most nights', preferences: 'Vegetarian-friendly' });
+  const [dataLoaded, setDataLoaded] = useState(false);
   const selected = useMemo(() => [...items.filter(i => i.selected), ...extraShoppingItems], [items, extraShoppingItems]);
+  const nextShop = useMemo(() => getNextShopLikelihood(), [items, purchases, dataLoaded]);
 
   const toggle = (name: string) => setItems(previous => previous.map(i => i.name === name ? { ...i, selected: !i.selected } : i));
   const removeItem = (name: string) => setItems(previous => previous.filter(i => i.name !== name));
@@ -148,14 +173,97 @@ export default function HomePage() {
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2600); };
   const nav = (target: 'home' | 'inventory' | 'history' | 'household') => { setTab(target); setShoppingListOpen(false); };
 
+  const refreshData = useCallback(async () => {
+    await recalculatePredictions();
+    const predictions = await getPredictions();
+    if (predictions.length > 0) {
+      setItems(predictions.map(predictionToDisplayItem));
+    }
+
+    const receipts = await getAllReceipts();
+    if (receipts.length > 0) {
+      const purchaseList = await Promise.all(
+        receipts.map(async receipt => {
+          const receiptItems = await getReceiptItems(receipt.id);
+          const total = receiptItems.reduce((sum, item) => sum + item.price, 0);
+          return {
+            id: receipt.id,
+            date: formatReceiptDate(receipt.date),
+            store: receipt.store,
+            itemCount: `${receiptItems.length} items`,
+            total: formatCurrency(total),
+            items: receiptItems.map(item => ({
+              name: item.normalizedName,
+              emoji: categoryEmoji[item.category],
+              qty: item.quantity,
+              price: formatCurrency(item.price),
+            })),
+          };
+        }),
+      );
+      setPurchases(purchaseList);
+    }
+    setDataLoaded(true);
+  }, []);
+
   const openUpload = () => {
-    setUploaded(false);
+    setReceiptError('');
     setUploadOpen(true);
+  };
+
+  const handleFileSelected = async (file: File) => {
+    setIsProcessingReceipt(true);
+    setReceiptError('');
+    try {
+      const { receipt, imageBlob } = await parseReceiptImage(file);
+      setReviewReceipt(receipt);
+      setReviewItems(toReviewItems(receipt.items));
+      setReviewImageBlob(imageBlob);
+      setUploadOpen(false);
+    } catch (error) {
+      setReceiptError(error instanceof Error ? error.message : 'Failed to parse receipt');
+    } finally {
+      setIsProcessingReceipt(false);
+    }
+  };
+
+  const handleSaveReceipt = async () => {
+    if (!reviewReceipt || !reviewImageBlob) return;
+    setSavingReceipt(true);
+    try {
+      await saveReceipt(
+        reviewReceipt.store,
+        reviewReceipt.purchaseDate,
+        reviewImageBlob,
+        reviewItems,
+      );
+      await refreshData();
+      setReviewReceipt(null);
+      setReviewItems([]);
+      setReviewImageBlob(null);
+      notify(`${reviewItems.length} items added to your household intelligence.`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Failed to save receipt');
+    } finally {
+      setSavingReceipt(false);
+    }
+  };
+
+  const handleDeletePurchase = async (id: string) => {
+    await deleteReceipt(id);
+    setPurchases(current => current.filter(purchase => purchase.id !== id));
+    setSelectedPurchase(null);
+    await refreshData();
+    notify('Receipt removed from your shopping history.');
   };
 
   useEffect(() => {
     if (window.localStorage.getItem('milo-onboarded') === 'true') setOnboarding(false);
   }, []);
+
+  useEffect(() => {
+    if (!onboarding) refreshData();
+  }, [onboarding, refreshData]);
 
   const startApp = (firstItem?: Item) => {
     setItems(firstItem ? [firstItem, ...starterItems] : starterItems);
@@ -235,9 +343,9 @@ export default function HomePage() {
 
       <section className="min-w-0 pb-20">
         {shoppingListOpen ? <ShoppingListView items={selected} onClose={() => setShoppingListOpen(false)} onAddItem={(name) => setExtraShoppingItems(current => [...current, { name, emoji: emojiForProduct(name) || '🛒', amount: '1', remaining: 'Added for this shop', due: 'Next shop', confidence: 100, cadence: 'Added manually', status: 'Soon', selected: true }])} /> : <>
-          {tab === 'home' && <HomeView householdName={household.name} selected={selected} items={items} onToggle={toggle} onDetail={setDetail} onUpload={openUpload} onList={() => setShoppingListOpen(true)} />}
+          {tab === 'home' && <HomeView householdName={household.name} selected={selected} items={items} nextShop={nextShop} onToggle={toggle} onDetail={setDetail} onUpload={openUpload} onList={() => setShoppingListOpen(true)} />}
           {tab === 'inventory' && <InventoryView items={items} onDetail={setDetail} onUpload={openUpload} />}
-          {tab === 'history' && <HistoryView purchases={purchases} onUpload={openUpload} onPurchaseClick={setSelectedPurchase} onDeletePurchase={(date) => { setPurchases(current => current.filter(purchase => purchase.date !== date)); setSelectedPurchase(null); notify('Receipt removed from your shopping history.'); }} />}
+          {tab === 'history' && <HistoryView purchases={purchases.length > 0 ? purchases : mockPurchases} onUpload={openUpload} onPurchaseClick={setSelectedPurchase} onDeletePurchase={handleDeletePurchase} />}
           {tab === 'household' && <HouseholdView household={household} onChange={(field, value) => setHousehold(current => ({ ...current, [field]: value }))} onSave={() => notify('Household settings saved. Milo will use these for future predictions.')} />}
         </>}
       </section>
@@ -245,15 +353,26 @@ export default function HomePage() {
 
     <nav className="fixed bottom-0 left-1/2 z-20 flex w-full max-w-[430px] -translate-x-1/2 justify-around border-t border-[#e5e9df] bg-white px-5 py-2"><MobileNav id="m-nav-home" icon={<Home size={19}/>} label="Home" active={tab === 'home'} onClick={() => nav('home')}/><MobileNav id="m-nav-pantry" icon={<PackageOpen size={19}/>} label="Pantry" active={tab === 'inventory'} onClick={() => nav('inventory')}/><button id="m-add-receipt" onClick={openUpload} className="-mt-6 grid h-13 w-13 place-items-center rounded-full bg-[#1d5b45] text-white shadow-lg"><Plus size={23}/></button><MobileNav id="m-nav-history" icon={<ReceiptText size={19}/>} label="History" active={tab === 'history'} onClick={() => nav('history')}/><MobileNav id="m-nav-household" icon={<Settings2 size={19}/>} label="Household" active={tab === 'household'} onClick={() => nav('household')}/></nav>
     {uploadOpen && <UploadModal
-      uploaded={uploaded}
-      onClose={() => { setUploadOpen(false); setUploaded(false); }}
-      onUpload={() => { setUploaded(true); window.setTimeout(() => { setUploadOpen(false); setUploaded(false); notify('7 items added to your household intelligence.'); }, 1200); }}
+      isProcessing={isProcessingReceipt}
+      error={receiptError}
+      onClose={() => { setUploadOpen(false); setReceiptError(''); }}
+      onFileSelected={handleFileSelected}
       onAddManualItem={(item) => {
         setItems(prev => [item, ...prev]);
         setUploadOpen(false);
         notify(`Manually added ${item.name} to pantry.`);
       }}
     />}
+    {reviewReceipt && (
+      <ReviewSheet
+        receipt={reviewReceipt}
+        items={reviewItems}
+        onItemsChange={setReviewItems}
+        onSave={handleSaveReceipt}
+        onClose={() => { setReviewReceipt(null); setReviewItems([]); setReviewImageBlob(null); }}
+        saving={savingReceipt}
+      />
+    )}
     {detail && <DetailModal item={detail} onClose={() => setDetail(null)} onRemove={() => { removeItem(detail.name); setDetail(null); notify(`Milo will learn from removing ${detail.name}.`); }} onStillHave={() => { setItems(current => current.map(item => item.name === detail.name ? { ...item, remaining: 'About half left', selected: false, confidence: 100 } : item)); setDetail(null); notify(`Thanks — Milo learned that you still have ${detail.name}.`); }} onRanOut={() => { setItems(current => current.map(item => item.name === detail.name ? { ...item, remaining: 'Empty', selected: false, confidence: 100 } : item)); setDetail(null); notify(`Thanks — Milo learned that ${detail.name} ran out.`); }} />}
     {selectedPurchase && <PurchaseDetailModal purchase={selectedPurchase} onClose={() => setSelectedPurchase(null)} />}
     {toast && <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#17261f] px-5 py-3 text-sm text-white shadow-xl">{toast}</div>}
@@ -337,9 +456,9 @@ function OnboardingPoint({ icon, title, text }: { icon: React.ReactNode; title: 
   return <div className="flex items-start gap-3 rounded-2xl border border-[#e2e7de] bg-white/75 p-3.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#eef5eb] text-[#28704c]">{icon}</span><div><p className="text-sm font-semibold">{title}</p><p className="mt-0.5 text-xs leading-5 text-[#718077]">{text}</p></div></div>
 }
 
-function HomeView({ householdName, selected, items, onToggle, onDetail, onUpload, onList }: { householdName: string; selected: Item[]; items: Item[]; onToggle: (n:string)=>void; onDetail:(i:Item)=>void; onUpload:()=>void; onList:()=>void }) { return <>
+function HomeView({ householdName, selected, items, nextShop, onToggle, onDetail, onUpload, onList }: { householdName: string; selected: Item[]; items: Item[]; nextShop: { likely: boolean; confidence: number; day: string }; onToggle: (n:string)=>void; onDetail:(i:Item)=>void; onUpload:()=>void; onList:()=>void }) { return <>
   <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-medium text-[#5e7166]">Thursday, July 16</p><h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-[34px]">Good morning, {householdName || 'there'}.</h1></div><button id="add-receipt-btn" onClick={onUpload} className="inline-flex items-center gap-2 rounded-full border border-[#d5e1d5] bg-white px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-[#f2f7f0]"><Upload size={16}/>Add a receipt</button></div>
-  <div className="mt-7 overflow-hidden rounded-3xl bg-[#1d5b45] p-6 text-white shadow-sm md:p-8"><div className="flex items-start justify-between"><div><span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-xs font-medium text-[#d4ead7]"><Sparkles size={13}/>Your next shop</span><h2 className="mt-4 max-w-xl text-2xl font-medium leading-tight md:text-3xl">You&apos;ll likely do groceries tomorrow.</h2><p className="mt-3 max-w-xl text-sm leading-6 text-[#d7e8dc]">Based on your recent rhythm, a Friday shop is 86% likely. I&apos;ve prepared what will keep your household covered for the week ahead.</p></div><span className="hidden text-5xl md:block">🛍️</span></div><div className="mt-6 flex flex-wrap gap-3"><button id="view-list-btn" onClick={onList} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-[#19523f]">View shopping list <ArrowRight size={16}/></button><button id="update-bought-btn" onClick={onUpload} className="rounded-full border border-white/25 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10">Update what I bought</button></div></div>
+  <div className="mt-7 overflow-hidden rounded-3xl bg-[#1d5b45] p-6 text-white shadow-sm md:p-8"><div className="flex items-start justify-between"><div><span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-xs font-medium text-[#d4ead7]"><Sparkles size={13}/>Your next shop</span><h2 className="mt-4 max-w-xl text-2xl font-medium leading-tight md:text-3xl">{nextShop.likely ? `You'll likely do groceries ${nextShop.day.toLowerCase()}.` : 'No urgent shopping yet.'}</h2><p className="mt-3 max-w-xl text-sm leading-6 text-[#d7e8dc]">{nextShop.likely ? `Based on your recent rhythm, a ${nextShop.day} shop is ${nextShop.confidence}% likely. I've prepared what will keep your household covered for the week ahead.` : 'Upload a few receipts and Milo will start predicting your shopping rhythm.'}</p></div><span className="hidden text-5xl md:block">🛍️</span></div><div className="mt-6 flex flex-wrap gap-3"><button id="view-list-btn" onClick={onList} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-[#19523f]">View shopping list <ArrowRight size={16}/></button><button id="update-bought-btn" onClick={onUpload} className="rounded-full border border-white/25 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10">Update what I bought</button></div></div>
   <div className="mt-8 flex items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.12em] text-[#6c7d72]">Recommended for tomorrow</p><h2 className="mt-1 text-xl font-semibold">A little less to remember</h2><p className="mt-1 text-xs text-[#718077]">Tap the circle to include an item in your next shop.</p></div><button id="items-selected-badge" onClick={() => onList()} className="shrink-0 text-right text-xs font-semibold text-[#2b6b50]">{selected.length} included</button></div>
   <div className="mt-4 space-y-3">{items.map(item => <Recommendation key={item.name} item={item} onToggle={onToggle} onDetail={onDetail}/>)}</div>
   <button id="open-shopping-list-btn" onClick={onList} className="mt-4 flex w-full items-center justify-between rounded-2xl bg-[#e7f2e7] px-4 py-3.5 text-left text-sm font-semibold text-[#1d5b45]"><span>View your shopping list</span><span className="inline-flex items-center gap-1.5"><span className="text-xs font-medium text-[#5f7d68]">{selected.length} items included</span><ArrowRight size={16}/></span></button>
@@ -355,13 +474,12 @@ function HouseholdView({ household, onChange, onSave }: { household: { adults: s
 function SettingField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="block text-sm font-medium text-[#596b60]">{label}<input aria-label={label} inputMode="numeric" value={value} onChange={event => onChange(event.target.value.replace(/[^0-9]/g, ''))} className="mt-2 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3 py-2.5 text-base font-semibold text-[#17261f] outline-none focus:border-[#4b8460]" /></label> }
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) { return <label className="block text-sm font-medium text-[#596b60]">{label}<select aria-label={label} value={value} onChange={event => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460]">{options.map(option => <option key={option}>{option}</option>)}</select></label> }
 
-function HistoryView({purchases, onUpload, onPurchaseClick, onDeletePurchase}:{purchases:Purchase[]; onUpload:()=>void; onPurchaseClick:(p:Purchase)=>void; onDeletePurchase:(date:string)=>void}) {
-  return <><p className="text-sm font-medium text-[#5e7166]">What Milo has learned from</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Shopping history</h1><div className="mt-7 overflow-hidden rounded-2xl border border-[#e2e7de] bg-white">{purchases.map((p,i) => <div key={p.date} className="flex items-center gap-3 border-b border-[#edf0eb] p-4 last:border-0"><button id={`purchase-item-${i}`} onClick={() => onPurchaseClick(p)} className="flex min-w-0 flex-1 items-center gap-4 text-left outline-none"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#eef5eb] text-[#28704c]"><ShoppingBag size={18}/></span><div className="min-w-0 flex-1"><p className="font-semibold">{p.store}</p><p className="text-sm text-[#738077]">{p.date} · {p.itemCount}</p></div><span className="text-sm font-medium">{p.total}</span><ChevronRight size={18} className="shrink-0 text-[#9aa79f]"/></button><button id={`delete-purchase-${i}`} onClick={() => onDeletePurchase(p.date)} aria-label={`Delete ${p.store} receipt from ${p.date}`} title="Delete receipt" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#a26a60] hover:bg-[#fdf1ef]"><Trash2 size={16}/></button></div>)}</div><button id="scan-receipt-btn" onClick={onUpload} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#b9cbb9] bg-[#fbfdf9] p-7 text-sm font-semibold text-[#347054]"><ScanLine size={19}/>Scan another receipt</button></>
+function HistoryView({purchases, onUpload, onPurchaseClick, onDeletePurchase}:{purchases:Purchase[]; onUpload:()=>void; onPurchaseClick:(p:Purchase)=>void; onDeletePurchase:(id:string)=>void}) {
+  return <><p className="text-sm font-medium text-[#5e7166]">What Milo has learned from</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Shopping history</h1><div className="mt-7 overflow-hidden rounded-2xl border border-[#e2e7de] bg-white">{purchases.map((p,i) => <div key={p.id} className="flex items-center gap-3 border-b border-[#edf0eb] p-4 last:border-0"><button id={`purchase-item-${i}`} onClick={() => onPurchaseClick(p)} className="flex min-w-0 flex-1 items-center gap-4 text-left outline-none"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#eef5eb] text-[#28704c]"><ShoppingBag size={18}/></span><div className="min-w-0 flex-1"><p className="font-semibold">{p.store}</p><p className="text-sm text-[#738077]">{p.date} · {p.itemCount}</p></div><span className="text-sm font-medium">{p.total}</span><ChevronRight size={18} className="shrink-0 text-[#9aa79f]"/></button><button id={`delete-purchase-${i}`} onClick={() => onDeletePurchase(p.id)} aria-label={`Delete ${p.store} receipt from ${p.date}`} title="Delete receipt" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#a26a60] hover:bg-[#fdf1ef]"><Trash2 size={16}/></button></div>)}</div><button id="scan-receipt-btn" onClick={onUpload} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#b9cbb9] bg-[#fbfdf9] p-7 text-sm font-semibold text-[#347054]"><ScanLine size={19}/>Scan another receipt</button></>
 }
 
-function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boolean;onClose:()=>void;onUpload:()=>void;onAddManualItem:(item:Item)=>void}) {
+function UploadModal({isProcessing, error, onClose, onFileSelected, onAddManualItem}:{isProcessing:boolean; error?:string; onClose:()=>void; onFileSelected:(file:File)=>void; onAddManualItem:(item:Item)=>void}) {
   const [isManual, setIsManual] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🍎');
   const [amount, setAmount] = useState('1 pack');
@@ -372,13 +490,8 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
   const commonEmojis = ['🍎', '🥛', '🥚', '🍞', '☕', '🫒', '🍌', '🧀', '🍗', '🥦', '🥫', '🧻'];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setIsUploading(true);
-      window.setTimeout(() => {
-        setIsUploading(false);
-        onUpload();
-      }, 1500);
-    }
+    const file = e.target.files?.[0];
+    if (file) onFileSelected(file);
   };
 
   const triggerFilePicker = () => {
@@ -413,7 +526,7 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
           <div>
             <p className="text-xs font-semibold uppercase tracking-[.12em] text-[#6c7e72]">Teach Milo</p>
             <h2 className="mt-1 text-xl font-semibold">
-              {isManual ? 'Add product manually' : isUploading ? 'Scanning receipt...' : 'Add what you bought'}
+              {isManual ? 'Add product manually' : isProcessing ? 'Scanning receipt...' : 'Add what you bought'}
             </h2>
           </div>
           <button id="close-upload-modal" onClick={onClose} className="rounded-full p-2 hover:bg-[#f4f6f2] transition duration-200">
@@ -544,7 +657,7 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
               </button>
             </div>
           </form>
-        ) : isUploading ? (
+        ) : isProcessing ? (
           <div className="py-12 text-center flex flex-col items-center">
             <span className="relative flex h-12 w-12">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2c714e] opacity-75"></span>
@@ -553,58 +666,47 @@ function UploadModal({uploaded,onClose,onUpload,onAddManualItem}:{uploaded:boole
               </span>
             </span>
             <h3 className="mt-6 text-lg font-semibold text-[#17261f]">Analyzing receipt...</h3>
-            <p className="mt-2 text-sm text-[#718077]">Milo is identifying products and stock quantities.</p>
+            <p className="mt-2 text-sm text-[#718077]">Milo is identifying products and quantities.</p>
           </div>
         ) : (
           <>
-            {uploaded ? (
-              <div className="py-12 text-center">
-                <span className="text-5xl">✨</span>
-                <h3 className="mt-4 text-lg font-semibold">Receipt understood</h3>
-                <p className="mt-2 text-sm text-[#6c7a72]">I found 7 products and updated your predictions.</p>
-                <button
-                  id="done-upload-btn"
-                  onClick={onClose}
-                  className="mt-6 w-full rounded-xl bg-[#1d5b45] py-3 text-sm font-semibold text-white hover:bg-[#174a38] transition duration-150 outline-none"
-                >
-                  Done
-                </button>
+            {error && (
+              <div className="mt-4 rounded-xl bg-[#fdf1ef] p-3 text-sm text-[#9d4a3d]">
+                {error}
               </div>
-            ) : (
-              <>
-                <input
-                  type="file"
-                  id="receipt-file-picker"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <button
-                  id="upload-receipt-modal-btn"
-                  onClick={triggerFilePicker}
-                  className="mt-6 grid w-full place-items-center rounded-2xl border-2 border-dashed border-[#bcd0bd] bg-[#f7fbf5] p-9 text-center hover:bg-[#f1f8ee] transition duration-150 outline-none"
-                >
-                  <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#2f6e4d] shadow-sm">
-                    <ReceiptText size={22}/>
-                  </span>
-                  <span className="mt-3 font-semibold text-base text-[#17261f]">Upload a receipt or bag photo</span>
-                  <span className="mt-1 text-sm text-[#718077]">Milo will identify products and quantities</span>
-                </button>
-                <div className="my-5 flex items-center gap-3 text-xs text-[#a0aaa2] font-semibold">
-                  <span className="h-px flex-1 bg-[#e7ebe5]"/>
-                  OR
-                  <span className="h-px flex-1 bg-[#e7ebe5]"/>
-                </div>
-                <button
-                  id="add-manually-modal-btn"
-                  onClick={() => setIsManual(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#dce5da] py-3 text-sm font-semibold text-[#1d5b45] hover:bg-[#f4f6f2] transition duration-150 outline-none"
-                >
-                  <Plus size={16}/>
-                  Add products manually
-                </button>
-              </>
             )}
+            <input
+              type="file"
+              id="receipt-file-picker"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              id="upload-receipt-modal-btn"
+              onClick={triggerFilePicker}
+              className="mt-6 grid w-full place-items-center rounded-2xl border-2 border-dashed border-[#bcd0bd] bg-[#f7fbf5] p-9 text-center hover:bg-[#f1f8ee] transition duration-150 outline-none"
+            >
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#2f6e4d] shadow-sm">
+                <ReceiptText size={22}/>
+              </span>
+              <span className="mt-3 font-semibold text-base text-[#17261f]">Take a photo or upload a receipt</span>
+              <span className="mt-1 text-sm text-[#718077]">Milo will identify products and quantities</span>
+            </button>
+            <div className="my-5 flex items-center gap-3 text-xs text-[#a0aaa2] font-semibold">
+              <span className="h-px flex-1 bg-[#e7ebe5]"/>
+              OR
+              <span className="h-px flex-1 bg-[#e7ebe5]"/>
+            </div>
+            <button
+              id="add-manually-modal-btn"
+              onClick={() => setIsManual(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#dce5da] py-3 text-sm font-semibold text-[#1d5b45] hover:bg-[#f4f6f2] transition duration-150 outline-none"
+            >
+              <Plus size={16}/>
+              Add products manually
+            </button>
           </>
         )}
       </div>
