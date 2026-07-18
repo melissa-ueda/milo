@@ -40,6 +40,7 @@ import {
 import { parseReceiptImage } from "../lib/image/upload";
 import type { ReviewItem } from "../lib/types/types";
 import { ParsedReceipt } from "../lib/types/parsed-receipt";
+import type { Household } from "../lib/types/household";
 
 type Item = {
   name: string;
@@ -266,6 +267,7 @@ export default function HomePage() {
     cooking: "Most nights",
     preferences: "Vegetarian-friendly",
   });
+  const [geminiApiKey, setGeminiApiKey] = useState("");
   const [dataLoaded, setDataLoaded] = useState(false);
   const selected = useMemo(
     () => [...items.filter((i) => i.selected), ...extraShoppingItems],
@@ -334,10 +336,14 @@ export default function HomePage() {
   };
 
   const handleFileSelected = async (file: File) => {
+    if (!geminiApiKey) {
+      setReceiptError("Please configure your Gemini API Key first (under Household settings or in onboarding).");
+      return;
+    }
     setIsProcessingReceipt(true);
     setReceiptError("");
     try {
-      const { receipt, imageBlob } = await parseReceiptImage(file);
+      const { receipt, imageBlob } = await parseReceiptImage(file, geminiApiKey);
       setReviewReceipt(receipt);
       setReviewItems(toReviewItems(receipt.items));
       setReviewImageBlob(imageBlob);
@@ -384,9 +390,32 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    if (window.localStorage.getItem("milo-onboarded") === "true")
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOnboarding(false);
+    if (typeof window !== "undefined") {
+      if (window.localStorage.getItem("milo-onboarded") === "true") {
+        setOnboarding(false);
+      }
+      const savedHousehold = window.localStorage.getItem("milo-household");
+      if (savedHousehold) {
+        try {
+          setHousehold(JSON.parse(savedHousehold));
+        } catch (e) {
+          console.error("Failed to parse household settings:", e);
+        }
+      }
+      const savedKey = window.localStorage.getItem("milo-gemini-api-key");
+      if (savedKey) {
+        setGeminiApiKey(savedKey);
+      }
+
+      // Register service worker for PWA support
+      if ("serviceWorker" in navigator) {
+        const basePath = process.env.NODE_ENV === "production" ? "/milo" : "";
+        navigator.serviceWorker
+          .register(`${basePath}/sw.js`)
+          .then((reg) => console.log("Service worker registered successfully:", reg))
+          .catch((err) => console.error("Service worker registration failed:", err));
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -397,6 +426,7 @@ export default function HomePage() {
   const startApp = (firstItem?: Item) => {
     setItems(firstItem ? [firstItem, ...starterItems] : starterItems);
     window.localStorage.setItem("milo-onboarded", "true");
+    window.localStorage.setItem("milo-household", JSON.stringify(household));
     setOnboarding(false);
   };
 
@@ -412,6 +442,11 @@ export default function HomePage() {
           }
           onProfileComplete={() => setOnboardingStep("first-item")}
           onComplete={startApp}
+          geminiApiKey={geminiApiKey}
+          setGeminiApiKey={(key) => {
+            setGeminiApiKey(key);
+            window.localStorage.setItem("milo-gemini-api-key", key);
+          }}
         />
       </main>
     );
@@ -615,13 +650,20 @@ export default function HomePage() {
                 <HouseholdView
                   household={household}
                   onChange={(field, value) =>
-                    setHousehold((current) => ({ ...current, [field]: value }))
+                    setHousehold((current) => {
+                      const updated = { ...current, [field]: value };
+                      return updated;
+                    })
                   }
-                  onSave={() =>
-                    notify(
-                      "Household settings saved. Milo will use these for future predictions.",
-                    )
-                  }
+                  onSave={() => {
+                    window.localStorage.setItem("milo-household", JSON.stringify(household));
+                    notify("Household settings saved. Milo will use these for future predictions.");
+                  }}
+                  geminiApiKey={geminiApiKey}
+                  setGeminiApiKey={(key) => {
+                    setGeminiApiKey(key);
+                    window.localStorage.setItem("milo-gemini-api-key", key);
+                  }}
                 />
               )}
             </>
@@ -761,6 +803,8 @@ function OnboardingView({
   onChange,
   onProfileComplete,
   onComplete,
+  geminiApiKey,
+  setGeminiApiKey,
 }: {
   step: "welcome" | "profile" | "first-item";
   household: Household;
@@ -768,6 +812,8 @@ function OnboardingView({
   onChange: (field: keyof Household, value: string) => void;
   onProfileComplete: () => void;
   onComplete: (firstItem?: Item) => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
 }) {
   if (step === "profile")
     return (
@@ -775,6 +821,8 @@ function OnboardingView({
         household={household}
         onChange={onChange}
         onComplete={onProfileComplete}
+        geminiApiKey={geminiApiKey}
+        setGeminiApiKey={setGeminiApiKey}
       />
     );
   if (step === "first-item")
@@ -847,10 +895,14 @@ function OnboardingProfile({
   household,
   onChange,
   onComplete,
+  geminiApiKey,
+  setGeminiApiKey,
 }: {
   household: Household;
   onChange: (field: keyof Household, value: string) => void;
   onComplete: () => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
 }) {
   return (
     <div className="flex min-h-screen flex-col px-6 pb-8 pt-8">
@@ -888,6 +940,31 @@ function OnboardingProfile({
               className="mt-2 w-full rounded-xl border border-[#dce5da] bg-white px-4 py-3 text-base font-medium text-[#17261f] outline-none focus:border-[#4b8460]"
             />
           </label>
+          <section className="rounded-2xl border border-[#e2e7de] bg-white p-4">
+            <h2 className="font-semibold text-[#17261f]">Gemini API Key</h2>
+            <p className="mt-1 text-xs text-[#718077]">
+              Milo runs entirely on your device. Enter your free Gemini API Key to enable receipt scanning.
+            </p>
+            <input
+              type="password"
+              aria-label="Gemini API Key"
+              placeholder="Paste your API key here (AIzaSy...)"
+              value={geminiApiKey}
+              onChange={(event) => setGeminiApiKey(event.target.value)}
+              className="mt-3 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-4 py-2.5 text-sm font-semibold text-[#17261f] outline-none focus:border-[#4b8460] transition"
+            />
+            <span className="mt-2 block text-[11px] text-[#718077]">
+              Don't have a key? Get one for free at{" "}
+              <a
+                href="https://aistudio.google.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#1d5b45] underline font-semibold hover:text-[#174a38]"
+              >
+                Google AI Studio
+              </a>.
+            </span>
+          </section>
           <section className="rounded-2xl border border-[#e2e7de] bg-white p-4">
             <h2 className="font-semibold">Who&apos;s at home?</h2>
             <div className="mt-4 grid grid-cols-3 gap-3">
@@ -1502,6 +1579,8 @@ function HouseholdView({
   household,
   onChange,
   onSave,
+  geminiApiKey,
+  setGeminiApiKey,
 }: {
   household: {
     adults: string;
@@ -1525,6 +1604,8 @@ function HouseholdView({
     value: string,
   ) => void;
   onSave: () => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
 }) {
   return (
     <>
@@ -1541,6 +1622,31 @@ function HouseholdView({
         </p>
       </div>
       <div className="mt-7 space-y-5">
+        <section className="rounded-2xl border border-[#e2e7de] bg-white p-5">
+          <h2 className="font-semibold text-[#17261f]">Gemini API Key</h2>
+          <p className="mt-1 text-xs text-[#718077]">
+            This key is used locally on your device to parse receipt photos. It is never uploaded to any server.
+          </p>
+          <input
+            type="password"
+            aria-label="Gemini API Key"
+            placeholder={geminiApiKey ? "••••••••••••••••••••••••••••••••" : "Paste your API key here"}
+            value={geminiApiKey}
+            onChange={(e) => setGeminiApiKey(e.target.value)}
+            className="mt-3 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3.5 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460] transition"
+          />
+          <span className="mt-2 block text-[11px] text-[#718077]">
+            Get a free API Key from{" "}
+            <a
+              href="https://aistudio.google.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#1d5b45] underline font-semibold hover:text-[#174a38]"
+            >
+              Google AI Studio
+            </a>.
+          </span>
+        </section>
         <section className="rounded-2xl border border-[#e2e7de] bg-white p-5">
           <h2 className="font-semibold">Who&apos;s at home?</h2>
           <div className="mt-4 grid grid-cols-3 gap-3">

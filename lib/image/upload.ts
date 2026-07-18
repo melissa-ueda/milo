@@ -1,21 +1,18 @@
 import { ParsedReceipt } from '../types/parsed-receipt';
 import { compressImage } from './compress';
+import { parseReceiptWithGemini } from '../ai/gemini';
 
-export async function parseReceiptImage(file: File): Promise<{ receipt: ParsedReceipt; imageBlob: Blob }> {
+export async function parseReceiptImage(
+  file: File,
+  apiKey: string,
+): Promise<{ receipt: ParsedReceipt; imageBlob: Blob }> {
   const compressed = await compressImage(file);
-  const formData = new FormData();
-  formData.append('image', compressed, compressed.name);
-
-  const response = await fetch('/api/receipt', {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Failed to parse receipt' }));
-    throw new Error(error.error ?? 'Failed to parse receipt');
+  try {
+    const receipt = await parseReceiptWithGemini(compressed, compressed.type, apiKey);
+    return { receipt, imageBlob: compressed };
+  } catch (error) {
+    console.error('Receipt parsing failed:', error);
+    throw new Error(error instanceof Error ? error.message : 'Failed to parse receipt');
   }
-
-  const receipt: ParsedReceipt = await response.json();
-  return { receipt, imageBlob: compressed };
 }
+

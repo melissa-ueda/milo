@@ -1,4 +1,4 @@
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { CATEGORY_LIST } from '../categories';
@@ -23,18 +23,25 @@ const receiptSchema = z.object({
   ),
 });
 
-const DEFAULT_MODEL = 'gemini-3.1-flash-lite';
-
-function getModelId(): string {
-  return process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
-}
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 export async function parseReceiptWithGemini(
-  imageBuffer: Buffer,
+  imageBlob: Blob,
   mimeType: string,
+  apiKey: string,
 ): Promise<ParsedReceipt> {
-  const base64 = imageBuffer.toString('base64');
-  const modelId = getModelId();
+  const base64DataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(imageBlob);
+  });
+
+  const google = createGoogleGenerativeAI({
+    apiKey,
+  });
+
+  const modelId = DEFAULT_MODEL;
 
   const { object } = await generateObject({
     model: google(modelId),
@@ -45,7 +52,7 @@ export async function parseReceiptWithGemini(
         role: 'user',
         content: [
           { type: 'text', text: RECEIPT_SYSTEM_PROMPT },
-          { type: 'image', image: `data:${mimeType};base64,${base64}` },
+          { type: 'image', image: base64DataUrl },
         ],
       },
     ],
@@ -60,10 +67,11 @@ export function formatGeminiError(error: unknown): { message: string; status: nu
 
   if (lower.includes('quota') || lower.includes('rate limit') || lower.includes('429')) {
     return {
-      message: `Gemini quota exceeded for ${getModelId()}. Try GEMINI_MODEL=gemini-2.5-flash-lite in .env.local, or check billing at ai.google.dev.`,
+      message: `Gemini quota exceeded. Please check your billing or quota at ai.google.dev.`,
       status: 429,
     };
   }
 
   return { message: raw, status: 500 };
 }
+
