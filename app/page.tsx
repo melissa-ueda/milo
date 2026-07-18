@@ -22,8 +22,8 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { ReviewSheet } from "@/components/ReviewSheet";
-import { categoryEmoji } from "@/lib/categories";
+import { ReviewSheet } from "../components/ReviewSheet";
+import { categoryEmoji } from "../lib/categories";
 import {
   deleteReceipt,
   formatCurrency,
@@ -32,16 +32,16 @@ import {
   getReceiptItems,
   saveReceipt,
   toReviewItems,
-} from "@/lib/db/receipts";
+} from "../lib/db/receipts";
 import {
   getPredictions,
   getNextShopLikelihood,
   predictionToDisplayItem,
   recalculatePredictions,
-} from "@/lib/inventory/predictor";
-import { parseReceiptImage } from "@/lib/image/upload";
-import type { ReviewItem } from "@/lib/types/types";
-import { ParsedReceipt } from "@/lib/types/parsed-receipt";
+} from "../lib/inventory/predictor";
+import { parseReceiptImage } from "../lib/image/upload";
+import type { ReviewItem } from "../lib/types/types";
+import { ParsedReceipt } from "../lib/types/parsed-receipt";
 
 type Item = {
   name: string;

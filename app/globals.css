@@ -1,17 +1,39 @@
+@import "tailwindcss";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* { box-sizing: border-box; }
-body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #dfe7df; }
-button { -webkit-tap-highlight-color: transparent; }
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #dfe7df;
+}
+button {
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* Keep the product phone-shaped even when previewed in a desktop browser. */
 @media (min-width: 640px) {
-  .mobile-shell .sm\:w-80 { width: calc(100% - 2rem); }
-  .mobile-shell .sm\:block { display: none; }
-  .mobile-shell .sm\:grid-cols-2 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-  .mobile-shell .sm\:place-items-center { place-items: end; }
-  .mobile-shell .sm\:p-5 { padding: 0; }
-  .mobile-shell .sm\:rounded-3xl { border-radius: 1.5rem 1.5rem 0 0; }
+  .mobile-shell .sm\:w-80 {
+    width: calc(100% - 2rem);
+  }
+  .mobile-shell .sm\:block {
+    display: none;
+  }
+  .mobile-shell .sm\:grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  .mobile-shell .sm\:place-items-center {
+    place-items: end;
+  }
+  .mobile-shell .sm\:p-5 {
+    padding: 0;
+  }
+  .mobile-shell .sm\:rounded-3xl {
+    border-radius: 1.5rem 1.5rem 0 0;
+  }
 }

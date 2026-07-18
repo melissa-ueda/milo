@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { Check, ChevronRight, Pencil, X } from "lucide-react";
-import { CATEGORY_LIST, categoryEmoji, categoryLabels } from "@/lib/categories";
-import type { Category } from "@/lib/categories";
-import type { ReviewItem } from "@/lib/types/types";
-import { ParsedReceipt } from "@/lib/types/parsed-receipt";
+import {
+  CATEGORY_LIST,
+  categoryEmoji,
+  categoryLabels,
+} from "../lib/categories";
+import type { Category } from "../lib/categories";
+import type { ReviewItem } from "../lib/types/types";
+import { ParsedReceipt } from "../lib/types/parsed-receipt";
 
 type ReviewSheetProps = {
   receipt: ParsedReceipt;

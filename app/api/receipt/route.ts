@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { formatGeminiError, parseReceiptWithGemini } from '@/lib/ai/gemini';
+import { formatGeminiError, parseReceiptWithGemini } from '../../../lib/ai/gemini';
 
 export async function POST(request: Request) {
   try {
