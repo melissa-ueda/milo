@@ -39,8 +39,15 @@ import {
 } from "../lib/inventory/predictor";
 import { parseReceiptImage } from "../lib/image/upload";
 import { ParsedReceipt } from "../lib/types/parsed-receipt";
-import type { Household } from "../lib/types/household";
+import {
+  CADENCE_LIST,
+  COOKING_TIMES_LIST,
+  FOOD_PREFERENCES_LIST,
+  SHOPPING_DAY_LIST,
+  type Household,
+} from "../lib/types/household";
 import { ReviewItem } from "@/lib/types/review-item";
+import { SelectField } from "@/components/SelectField";
 
 type Item = {
   name: string;
@@ -257,14 +264,14 @@ export default function HomePage() {
   const [onboardingStep, setOnboardingStep] = useState<
     "welcome" | "profile" | "first-item"
   >("welcome");
-  const [household, setHousehold] = useState({
+  const [household, setHousehold] = useState<Household>({
     name: "",
-    adults: "2",
-    children: "0",
-    pets: "1",
+    adults: 2,
+    children: 0,
+    pets: 1,
     cadence: "Weekly",
     day: "Friday",
-    cooking: "Most nights",
+    cooking: "Most days",
     preferences: "Vegetarian-friendly",
   });
   const [geminiApiKey, setGeminiApiKey] = useState("");
@@ -447,7 +454,7 @@ export default function HomePage() {
           step={onboardingStep}
           household={household}
           onGetStarted={() => setOnboardingStep("profile")}
-          onChange={(field, value) =>
+          onChange={(field, value: string | number) =>
             setHousehold((current) => ({ ...current, [field]: value }))
           }
           onProfileComplete={() => setOnboardingStep("first-item")}
@@ -824,7 +831,7 @@ function OnboardingView({
   step: "welcome" | "profile" | "first-item";
   household: Household;
   onGetStarted: () => void;
-  onChange: (field: keyof Household, value: string) => void;
+  onChange: (field: keyof Household, value: string | number) => void;
   onProfileComplete: () => void;
   onComplete: (firstItem?: Item) => void;
   geminiApiKey: string;
@@ -914,7 +921,7 @@ function OnboardingProfile({
   setGeminiApiKey,
 }: {
   household: Household;
-  onChange: (field: keyof Household, value: string) => void;
+  onChange: (field: keyof Household, value: string | number) => void;
   onComplete: () => void;
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
@@ -1008,45 +1015,25 @@ function OnboardingProfile({
               <SelectField
                 label="Usual shopping frequency"
                 value={household.cadence}
-                options={[
-                  "Weekly",
-                  "Every 10 days",
-                  "Every two weeks",
-                  "It varies",
-                ]}
+                options={CADENCE_LIST}
                 onChange={(value) => onChange("cadence", value)}
               />
               <SelectField
                 label="Usual shopping day"
                 value={household.day}
-                options={[
-                  "Monday",
-                  "Tuesday",
-                  "Wednesday",
-                  "Thursday",
-                  "Friday",
-                  "Saturday",
-                  "Sunday",
-                  "No usual day",
-                ]}
+                options={SHOPPING_DAY_LIST}
                 onChange={(value) => onChange("day", value)}
               />
               <SelectField
                 label="Cooking at home"
                 value={household.cooking}
-                options={["Most nights", "A few nights a week", "Rarely"]}
+                options={COOKING_TIMES_LIST}
                 onChange={(value) => onChange("cooking", value)}
               />
               <SelectField
                 label="Food preferences"
                 value={household.preferences}
-                options={[
-                  "Vegetarian-friendly",
-                  "No preferences",
-                  "Vegan",
-                  "Gluten-free",
-                  "Family-friendly",
-                ]}
+                options={FOOD_PREFERENCES_LIST}
                 onChange={(value) => onChange("preferences", value)}
               />
             </div>
@@ -1298,8 +1285,8 @@ function OnboardingNumber({
   onChange,
 }: {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  value: number;
+  onChange: (value: number) => void;
 }) {
   return (
     <label className="block text-sm font-medium text-[#596b60]">
@@ -1309,7 +1296,9 @@ function OnboardingNumber({
         inputMode="numeric"
         value={value}
         onChange={(event) =>
-          onChange(event.target.value.replace(/[^0-9]/g, ""))
+          onChange(
+            Number.parseInt(event.target.value.replace(/[^0-9]/g, ""), 10),
+          )
         }
         className="mt-2 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3 py-2.5 text-base font-semibold text-[#17261f] outline-none focus:border-[#4b8460]"
       />
@@ -1599,15 +1588,7 @@ function HouseholdView({
   geminiApiKey,
   setGeminiApiKey,
 }: {
-  household: {
-    adults: string;
-    children: string;
-    pets: string;
-    cadence: string;
-    day: string;
-    cooking: string;
-    preferences: string;
-  };
+  household: Household;
   onChange: (
     field: keyof {
       adults: string;
@@ -1675,17 +1656,17 @@ function HouseholdView({
           <div className="mt-4 grid grid-cols-3 gap-3">
             <SettingField
               label="Adults"
-              value={household.adults}
+              value={household.adults.toString()}
               onChange={(v) => onChange("adults", v)}
             />
             <SettingField
               label="Children"
-              value={household.children}
+              value={household.children.toString()}
               onChange={(v) => onChange("children", v)}
             />
             <SettingField
               label="Pets"
-              value={household.pets}
+              value={household.pets.toString()}
               onChange={(v) => onChange("pets", v)}
             />
           </div>
@@ -1699,27 +1680,13 @@ function HouseholdView({
             <SelectField
               label="Usual frequency"
               value={household.cadence}
-              options={[
-                "Weekly",
-                "Every 10 days",
-                "Every two weeks",
-                "It varies",
-              ]}
+              options={CADENCE_LIST}
               onChange={(v) => onChange("cadence", v)}
             />
             <SelectField
               label="Usual shopping day"
               value={household.day}
-              options={[
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-                "Saturday",
-                "Sunday",
-                "No usual day",
-              ]}
+              options={SHOPPING_DAY_LIST}
               onChange={(v) => onChange("day", v)}
             />
           </div>
@@ -1730,19 +1697,13 @@ function HouseholdView({
             <SelectField
               label="Cooking at home"
               value={household.cooking}
-              options={["Most nights", "A few nights a week", "Rarely"]}
+              options={COOKING_TIMES_LIST}
               onChange={(v) => onChange("cooking", v)}
             />
             <SelectField
               label="Food preferences"
               value={household.preferences}
-              options={[
-                "Vegetarian-friendly",
-                "No preferences",
-                "Vegan",
-                "Gluten-free",
-                "Family-friendly",
-              ]}
+              options={FOOD_PREFERENCES_LIST}
               onChange={(v) => onChange("preferences", v)}
             />
           </div>
@@ -1781,33 +1742,6 @@ function SettingField({
         }
         className="mt-2 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3 py-2.5 text-base font-semibold text-[#17261f] outline-none focus:border-[#4b8460]"
       />
-    </label>
-  );
-}
-function SelectField({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block text-sm font-medium text-[#596b60]">
-      {label}
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460]"
-      >
-        {options.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
-      </select>
     </label>
   );
 }
