@@ -1,4 +1,4 @@
-import { categoryEmoji } from "../categories";
+import { typeEmoji } from "@/core/models/type";
 import type { Prediction } from "@/core/models/prediction";
 import { db } from "../db/dexie";
 import type { Household } from "@/core/models/household";
@@ -190,6 +190,7 @@ export async function recalculatePredictions(
   if (apiKey?.trim() && products.length > 0) {
     const predictionInputs: PredictionInput[] = products.map((product) => ({
       normalizedName: product.normalizedName,
+      type: product.type,
       category: product.category,
       purchaseDates: Array.from(
         productDatesMap.get(product.normalizedName.toLowerCase()) || [],
@@ -238,6 +239,7 @@ export async function recalculatePredictions(
             productId: product.id,
             normalizedName: product.normalizedName,
             category: product.category,
+            type: product.type,
             averageConsumptionDays: result.averageConsumptionDays,
             lastPurchase: product.lastPurchase,
             predictedRunOutDate: runOutDate.toISOString(),
@@ -278,6 +280,7 @@ export async function recalculatePredictions(
         productId: product.id,
         normalizedName: product.normalizedName,
         category: product.category,
+        type: product.type,
         averageConsumptionDays: 0,
         lastPurchase: product.lastPurchase,
         predictedRunOutDate: "", // empty means learning phase
@@ -359,6 +362,7 @@ export async function recalculatePredictions(
       productId: product.id,
       normalizedName: product.normalizedName,
       category: product.category,
+      type: product.type,
       averageConsumptionDays: roundedAvg,
       lastPurchase: product.lastPurchase,
       predictedRunOutDate: runOutDate.toISOString(),
@@ -417,7 +421,7 @@ export function predictionToDisplayItem(prediction: Prediction) {
   return {
     productId: prediction.productId,
     name: prediction.normalizedName,
-    emoji: categoryEmoji[prediction.category],
+    emoji: typeEmoji[prediction.type],
     amount: "1",
     remaining: learning
       ? "Newly added — learning your rhythm"

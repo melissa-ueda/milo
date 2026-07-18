@@ -79,6 +79,7 @@ export async function parseReceiptWithGemini(
 
 export type PredictionInput = {
   normalizedName: string;
+  type: string;
   category: string;
   purchaseDates: string[];
   lastPurchase: string;

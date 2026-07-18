@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { Check, ChevronRight, Pencil, X } from "lucide-react";
-import { categoryEmoji, categoryLabels } from "../lib/categories";
+import { categoryLabels } from "../lib/categories";
 import type { ParsedReceipt, ReviewItem } from "@/core/models/parsed";
 import { Category, CATEGORY_LIST } from "@/core/models/category";
+import { typeEmoji, TYPE_LIST, Type } from "@/core/models/type";
 
 type ReviewSheetProps = {
   receipt: ParsedReceipt;
@@ -81,9 +82,7 @@ export function ReviewSheet({
                   key={item.id}
                   className="flex items-center gap-3 rounded-xl bg-[#f7f8f5] p-3"
                 >
-                  <span className="text-2xl">
-                    {categoryEmoji[item.category]}
-                  </span>
+                  <span className="text-2xl">{typeEmoji[item.type]}</span>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm">
                       {item.normalizedName}
@@ -140,6 +139,7 @@ function EditItemRow({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(item.normalizedName);
+  const [type, setType] = useState<Type>(item.type);
   const [category, setCategory] = useState<Category>(item.category);
   const [quantity, setQuantity] = useState(String(item.quantity));
   const [unit, setUnit] = useState(item.unit);
@@ -148,6 +148,7 @@ function EditItemRow({
   const handleSave = () => {
     onSave({
       normalizedName: name.trim(),
+      type,
       category,
       quantity: parseFloat(quantity) || 1,
       unit: unit.trim(),
@@ -164,13 +165,24 @@ function EditItemRow({
         placeholder="Product name"
       />
       <select
+        value={type}
+        onChange={(e) => setType(e.target.value as Type)}
+        className="w-full rounded-lg border border-[#dce5da] bg-white px-3 py-2 text-sm outline-none focus:border-[#4b8460]"
+      >
+        {TYPE_LIST.map((value) => (
+          <option key={value} value={value}>
+            {typeEmoji[value]} {value}
+          </option>
+        ))}
+      </select>
+      <select
         value={category}
         onChange={(e) => setCategory(e.target.value as Category)}
         className="w-full rounded-lg border border-[#dce5da] bg-white px-3 py-2 text-sm outline-none focus:border-[#4b8460]"
       >
         {CATEGORY_LIST.map((cat) => (
           <option key={cat} value={cat}>
-            {categoryEmoji[cat]} {categoryLabels[cat]}
+            {categoryLabels[cat]}
           </option>
         ))}
       </select>

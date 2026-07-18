@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { categoryEmoji } from "@/lib/categories";
+import { typeEmoji } from "@/core/models/type";
 import {
   formatCurrency,
   formatReceiptDate,
@@ -72,7 +72,7 @@ export function useMiloData(household: Household, apiKey: string) {
           ),
           items: receiptItems.map((item) => ({
             name: item.normalizedName,
-            emoji: categoryEmoji[item.category],
+            emoji: typeEmoji[item.type],
             qty: item.quantity,
             price: formatCurrency(item.price),
           })),

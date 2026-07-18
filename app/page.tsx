@@ -36,6 +36,7 @@ import {
 } from "../lib/db/settings";
 import { parseReceiptImage } from "../lib/image/upload";
 import type { ParsedReceipt, ReviewItem } from "@/core/models/parsed";
+import { typeEmoji, typeForProductName } from "@/core/models/type";
 import {
   useMiloData,
   type Purchase,
@@ -51,29 +52,7 @@ import {
 import { SelectField } from "@/components/SelectField";
 
 function emojiForProduct(name: string) {
-  const value = name.toLowerCase();
-  const matches: Array<[string[], string]> = [
-    [["milk", "oat milk", "yogurt"], "🥛"],
-    [["egg"], "🥚"],
-    [["bread", "sourdough", "toast"], "🍞"],
-    [["coffee"], "☕"],
-    [["olive oil", "oil"], "🫒"],
-    [["banana"], "🍌"],
-    [["apple"], "🍎"],
-    [["avocado"], "🥑"],
-    [["cheese"], "🧀"],
-    [["chicken"], "🍗"],
-    [["broccoli"], "🥦"],
-    [["tomato"], "🍅"],
-    [["spinach", "salad"], "🥬"],
-    [["water"], "💧"],
-    [["pasta", "spaghetti"], "🍝"],
-    [["lemon"], "🍋"],
-    [["orange"], "🍊"],
-  ];
-  return matches.find(([keywords]) =>
-    keywords.some((keyword) => value.includes(keyword)),
-  )?.[1];
+  return typeEmoji[typeForProductName(name)];
 }
 
 export default function HomePage() {

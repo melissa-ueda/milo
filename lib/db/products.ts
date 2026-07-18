@@ -2,7 +2,7 @@ import { slugify } from "../slugify";
 import { db } from "./dexie";
 import type { ReceiptItem } from "@/core/models/receipt";
 import { Category } from "@/core/models/category";
-import { Type } from "@/core/models/type";
+import { Type, typeForProductName } from "@/core/models/type";
 
 export async function updateProductsFromReceipt(
   items: ReceiptItem[],
@@ -71,7 +71,7 @@ export async function addManualProduct(input: {
   await db.products.put({
     id,
     normalizedName: input.name.trim(),
-    type: input.type || ("other" as Type),
+    type: input.type || typeForProductName(input.name),
     category: input.category || "other",
     averageConsumptionDays: null,
     lastPurchase: new Date().toISOString(),
