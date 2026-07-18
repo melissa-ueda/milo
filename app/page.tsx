@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Bell,
@@ -21,51 +21,34 @@ import {
   X,
 } from "lucide-react";
 import { ReviewSheet } from "../components/ReviewSheet";
-import { categoryEmoji } from "../lib/categories";
+import { deleteReceipt, saveReceipt, toReviewItems } from "../lib/db/receipts";
 import {
-  deleteReceipt,
-  formatCurrency,
-  formatReceiptDate,
-  getAllReceipts,
-  getReceiptItems,
-  saveReceipt,
-  toReviewItems,
-} from "../lib/db/receipts";
-import {
-  getPredictions,
   getNextShopLikelihood,
-  predictionToDisplayItem,
-  recalculatePredictions,
   recordStillHaveFeedback,
   recordRanOutFeedback,
   ignoreProductPrediction,
 } from "../lib/inventory/predictor";
+import { addManualProduct } from "../lib/db/products";
+import {
+  defaultHousehold,
+  getSettings,
+  saveSettings,
+} from "../lib/db/settings";
 import { parseReceiptImage } from "../lib/image/upload";
-import { ParsedReceipt } from "../lib/types/parsed-receipt";
+import type { ParsedReceipt, ReviewItem } from "@/core/models/parsed";
+import {
+  useMiloData,
+  type Purchase,
+  type RecommendationItem as Item,
+} from "@/lib/hooks/use-milo-data";
 import {
   CADENCE_LIST,
   COOKING_TIMES_LIST,
   FOOD_PREFERENCES_LIST,
   SHOPPING_DAY_LIST,
   type Household,
-} from "../lib/types/household";
-import { ReviewItem } from "@/lib/types/review-item";
+} from "@/core/models/household";
 import { SelectField } from "@/components/SelectField";
-
-type Item = {
-  productId?: string;
-  name: string;
-  emoji: string;
-  amount: string;
-  remaining: string;
-  due: string;
-  confidence: number;
-  cadence: string;
-  status: "Soon" | "This week" | "Later";
-  selected: boolean;
-  percentRemaining?: number;
-  daysSinceLastPurchase?: number;
-};
 
 function emojiForProduct(name: string) {
   const value = name.toLowerCase();
@@ -93,159 +76,8 @@ function emojiForProduct(name: string) {
   )?.[1];
 }
 
-const starterItems: Item[] = [
-  {
-    name: "Whole milk",
-    emoji: "🥛",
-    amount: "1 carton",
-    remaining: "About 1/4 left",
-    due: "Tuesday",
-    confidence: 96,
-    cadence: "Usually every 6 days",
-    status: "Soon",
-    selected: true,
-  },
-  {
-    name: "Eggs",
-    emoji: "🥚",
-    amount: "6 pack",
-    remaining: "About 4 left",
-    due: "Thursday",
-    confidence: 91,
-    cadence: "Usually every 9 days",
-    status: "This week",
-    selected: true,
-  },
-  {
-    name: "Sourdough",
-    emoji: "🍞",
-    amount: "1 loaf",
-    remaining: "About 1/3 left",
-    due: "Wednesday",
-    confidence: 89,
-    cadence: "Usually every 5 days",
-    status: "Soon",
-    selected: true,
-  },
-  {
-    name: "Coffee beans",
-    emoji: "☕",
-    amount: "340 g bag",
-    remaining: "About 1/3 left",
-    due: "Jul 24",
-    confidence: 82,
-    cadence: "Usually every 18 days",
-    status: "Later",
-    selected: true,
-  },
-  {
-    name: "Olive oil",
-    emoji: "🫒",
-    amount: "500 ml",
-    remaining: "About half left",
-    due: "Jul 30",
-    confidence: 64,
-    cadence: "Still learning your rhythm",
-    status: "Later",
-    selected: false,
-  },
-];
-
-interface PurchaseItem {
-  name: string;
-  emoji: string;
-  qty: number;
-  price: string;
-}
-
-interface Purchase {
-  id: string;
-  date: string;
-  store: string;
-  itemCount: string;
-  total: string;
-  items: PurchaseItem[];
-}
-
-const mockPurchases: Purchase[] = [
-  {
-    id: "mock-1",
-    date: "Jul 11",
-    store: "REWE",
-    itemCount: "18 items",
-    total: "€64.20",
-    items: [
-      { name: "Whole milk", emoji: "🥛", qty: 2, price: "€1.19" },
-      { name: "Eggs 6-pack", emoji: "🥚", qty: 1, price: "€1.99" },
-      { name: "Sourdough", emoji: "🍞", qty: 1, price: "€3.49" },
-      { name: "Coffee beans", emoji: "☕", qty: 1, price: "€8.99" },
-      { name: "Organic Bananas", emoji: "🍌", qty: 1, price: "€2.29" },
-      { name: "Avocados 2-pack", emoji: "🥑", qty: 1, price: "€2.49" },
-      { name: "Greek Yogurt 500g", emoji: "🥛", qty: 1, price: "€1.99" },
-      { name: "Spinach 250g", emoji: "🥬", qty: 1, price: "€1.49" },
-      { name: "Blueberries 125g", emoji: "🫐", qty: 1, price: "€2.29" },
-      { name: "Salmon Fillet", emoji: "🐟", qty: 1, price: "€12.99" },
-      { name: "Sparkling Water 6x1L", emoji: "💧", qty: 1, price: "€4.79" },
-      { name: "Butter", emoji: "🧈", qty: 1, price: "€2.19" },
-      { name: "Tomatoes 500g", emoji: "🍅", qty: 1, price: "€1.89" },
-      { name: "Pasta 500g", emoji: "🍝", qty: 1, price: "€1.29" },
-      { name: "Pesto Rosso", emoji: "🫙", qty: 1, price: "€2.49" },
-      { name: "Dark Chocolate", emoji: "🍫", qty: 1, price: "€1.49" },
-      { name: "Toilet paper", emoji: "🧻", qty: 1, price: "€3.99" },
-      { name: "Olive oil", emoji: "🫒", qty: 1, price: "€9.99" },
-    ],
-  },
-  {
-    id: "mock-2",
-    date: "Jul 4",
-    store: "REWE",
-    itemCount: "14 items",
-    total: "€52.80",
-    items: [
-      { name: "Whole milk", emoji: "🥛", qty: 1, price: "€1.19" },
-      { name: "Eggs 6-pack", emoji: "🥚", qty: 1, price: "€1.99" },
-      { name: "Sourdough", emoji: "🍞", qty: 1, price: "€3.49" },
-      { name: "Apples 1kg", emoji: "🍎", qty: 1, price: "€2.99" },
-      { name: "Chicken Breast 400g", emoji: "🍗", qty: 1, price: "€5.99" },
-      { name: "Basmati Rice 1kg", emoji: "🌾", qty: 1, price: "€2.49" },
-      { name: "Broccoli", emoji: "🥦", qty: 1, price: "€1.29" },
-      { name: "Cheddar Cheese 200g", emoji: "🧀", qty: 1, price: "€2.89" },
-      { name: "Tortilla Chips", emoji: "🌽", qty: 1, price: "€1.79" },
-      { name: "Salsa Dip", emoji: "🫙", qty: 1, price: "€1.99" },
-      { name: "Oat Milk 1L", emoji: "🥛", qty: 2, price: "€1.99" },
-      { name: "Orange Juice 1L", emoji: "🍊", qty: 2, price: "€2.49" },
-    ],
-  },
-  {
-    id: "mock-3",
-    date: "Jun 27",
-    store: "EDEKA",
-    itemCount: "21 items",
-    total: "€71.45",
-    items: [
-      { name: "Olive oil", emoji: "🫒", qty: 1, price: "€8.99" },
-      { name: "Coffee beans", emoji: "☕", qty: 1, price: "€8.99" },
-      { name: "Sourdough", emoji: "🍞", qty: 1, price: "€3.49" },
-      { name: "Whole milk", emoji: "🥛", qty: 3, price: "€1.19" },
-      { name: "Eggs 6-pack", emoji: "🥚", qty: 2, price: "€1.99" },
-      { name: "Butter", emoji: "🧈", qty: 1, price: "€2.19" },
-      { name: "Organic Lemons", emoji: "🍋", qty: 1, price: "€1.79" },
-      { name: "Avocados 2-pack", emoji: "🥑", qty: 2, price: "€2.49" },
-      { name: "Spaghetti 500g", emoji: "🍝", qty: 3, price: "€1.29" },
-      { name: "Tomato Passata", emoji: "🍅", qty: 3, price: "€0.99" },
-      { name: "Garlic bulbs", emoji: "🧄", qty: 1, price: "€1.29" },
-      { name: "Parmesan Cheese", emoji: "🧀", qty: 1, price: "€3.49" },
-      { name: "Sea Salt", emoji: "🧂", qty: 1, price: "€1.99" },
-      { name: "Toilet paper", emoji: "🧻", qty: 1, price: "€3.99" },
-      { name: "Paper towels", emoji: "🧻", qty: 1, price: "€2.99" },
-    ],
-  },
-];
-
 export default function HomePage() {
-  const [items, setItems] = useState<Item[]>([]);
   const [extraShoppingItems, setExtraShoppingItems] = useState<Item[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [tab, setTab] = useState<
     "home" | "inventory" | "history" | "household"
   >("home");
@@ -270,36 +102,27 @@ export default function HomePage() {
   const [onboardingStep, setOnboardingStep] = useState<
     "welcome" | "profile" | "first-item"
   >("welcome");
-  const [household, setHousehold] = useState<Household>({
-    name: "",
-    adults: 2,
-    children: 0,
-    pets: 1,
-    cadence: "Weekly",
-    day: "Friday",
-    cooking: "Most days",
-    preferences: "Vegetarian-friendly",
-  });
+  const [household, setHousehold] = useState<Household>(defaultHousehold);
   const [geminiApiKey, setGeminiApiKey] = useState("");
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const {
+    items,
+    predictions,
+    purchases,
+    dataLoaded,
+    refresh: refreshData,
+    toggle,
+    setItems,
+    addManualItem,
+  } = useMiloData(household, geminiApiKey);
   const selected = useMemo(
     () => [...items.filter((i) => i.selected), ...extraShoppingItems],
     [items, extraShoppingItems],
   );
   const nextShop = useMemo(
-    () => getNextShopLikelihood(household),
+    () => getNextShopLikelihood(household, predictions),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items, purchases, dataLoaded, household],
+    [items, purchases, dataLoaded, household, predictions],
   );
-
-  const toggle = (name: string) =>
-    setItems((previous) =>
-      previous.map((i) =>
-        i.name === name ? { ...i, selected: !i.selected } : i,
-      ),
-    );
-  const removeItem = (name: string) =>
-    setItems((previous) => previous.filter((i) => i.name !== name));
 
   const notify = (message: string) => {
     setToast(message);
@@ -309,39 +132,6 @@ export default function HomePage() {
     setTab(target);
     setShoppingListOpen(false);
   };
-
-  const refreshData = useCallback(async () => {
-    await recalculatePredictions(household, geminiApiKey);
-    const predictions = await getPredictions();
-    if (predictions.length > 0) {
-      setItems(predictions.map(predictionToDisplayItem));
-    }
-
-    const receipts = await getAllReceipts();
-    if (receipts.length > 0) {
-      const purchaseList = await Promise.all(
-        receipts.map(async (receipt) => {
-          const receiptItems = await getReceiptItems(receipt.id);
-          const total = receiptItems.reduce((sum, item) => sum + item.price, 0);
-          return {
-            id: receipt.id,
-            date: formatReceiptDate(receipt.date),
-            store: receipt.store,
-            itemCount: `${receiptItems.length} items`,
-            total: formatCurrency(total),
-            items: receiptItems.map((item) => ({
-              name: item.normalizedName,
-              emoji: categoryEmoji[item.category],
-              qty: item.quantity,
-              price: formatCurrency(item.price),
-            })),
-          };
-        }),
-      );
-      setPurchases(purchaseList);
-    }
-    setDataLoaded(true);
-  }, [household, geminiApiKey]);
 
   const openUpload = () => {
     setReceiptError("");
@@ -401,31 +191,19 @@ export default function HomePage() {
 
   const handleDeletePurchase = async (id: string) => {
     await deleteReceipt(id);
-    setPurchases((current) => current.filter((purchase) => purchase.id !== id));
     setSelectedPurchase(null);
     await refreshData();
     notify("Receipt removed from your shopping history.");
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (window.localStorage.getItem("milo-onboarded") === "true") {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setOnboarding(false);
-      }
-      const savedHousehold = window.localStorage.getItem("milo-household");
-      if (savedHousehold) {
-        try {
-          setHousehold(JSON.parse(savedHousehold));
-        } catch (e) {
-          console.error("Failed to parse household settings:", e);
-        }
-      }
-      const savedKey = window.localStorage.getItem("milo-gemini-api-key");
-      if (savedKey) {
-        setGeminiApiKey(savedKey);
-      }
+    void getSettings().then((settings) => {
+      setHousehold(settings.household);
+      setGeminiApiKey(settings.geminiApiKey);
+      setOnboarding(!settings.onboarded);
+    });
 
+    if (typeof window !== "undefined") {
       // Register service worker for PWA support
       if ("serviceWorker" in navigator) {
         const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -442,15 +220,14 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!onboarding) refreshData();
   }, [onboarding, refreshData]);
 
-  const startApp = (firstItem?: Item) => {
-    setItems(firstItem ? [firstItem] : []);
-    window.localStorage.setItem("milo-onboarded", "true");
-    window.localStorage.setItem("milo-household", JSON.stringify(household));
+  const startApp = async (firstItem?: Item) => {
+    if (firstItem) await addManualProduct({ name: firstItem.name });
+    await saveSettings({ household, onboarded: true });
     setOnboarding(false);
+    await refreshData();
   };
 
   if (onboarding)
@@ -468,7 +245,7 @@ export default function HomePage() {
           geminiApiKey={geminiApiKey}
           setGeminiApiKey={(key) => {
             setGeminiApiKey(key);
-            window.localStorage.setItem("milo-gemini-api-key", key);
+            void saveSettings({ geminiApiKey: key });
           }}
         />
       </main>
@@ -578,46 +355,6 @@ export default function HomePage() {
       </header>
 
       <div className="mx-auto block px-4 py-6">
-        <aside className="hidden">
-          <nav className="space-y-1 text-sm font-medium text-[#617067]">
-            <NavButton
-              id="nav-home"
-              icon={<Home size={18} />}
-              label="Home"
-              active={tab === "home"}
-              onClick={() => nav("home")}
-            />
-            <NavButton
-              id="nav-pantry"
-              icon={<PackageOpen size={18} />}
-              label="My pantry"
-              active={tab === "inventory"}
-              onClick={() => nav("inventory")}
-            />
-            <NavButton
-              id="nav-history"
-              icon={<ReceiptText size={18} />}
-              label="Shopping history"
-              active={tab === "history"}
-              onClick={() => nav("history")}
-            />
-            <NavButton
-              id="nav-household"
-              icon={<Settings2 size={18} />}
-              label="Household"
-              active={tab === "household"}
-              onClick={() => nav("household")}
-            />
-          </nav>
-          <div className="mt-10 rounded-2xl bg-[#e7f2e7] p-4">
-            <Sparkles size={18} className="text-[#317051]" />
-            <p className="mt-2 text-sm font-semibold">Milo is learning</p>
-            <p className="mt-1 text-xs leading-5 text-[#5c7162]">
-              You&apos;ve helped improve 14 predictions this month.
-            </p>
-          </div>
-        </aside>
-
         <section className="min-w-0 pb-20">
           {shoppingListOpen ? (
             <ShoppingListView
@@ -679,10 +416,7 @@ export default function HomePage() {
                     })
                   }
                   onSave={() => {
-                    window.localStorage.setItem(
-                      "milo-household",
-                      JSON.stringify(household),
-                    );
+                    void saveSettings({ household });
                     notify(
                       "Household settings saved. Milo will use these for future predictions.",
                     );
@@ -690,7 +424,7 @@ export default function HomePage() {
                   geminiApiKey={geminiApiKey}
                   setGeminiApiKey={(key) => {
                     setGeminiApiKey(key);
-                    window.localStorage.setItem("milo-gemini-api-key", key);
+                    void saveSettings({ geminiApiKey: key });
                   }}
                 />
               )}
@@ -746,7 +480,9 @@ export default function HomePage() {
           }}
           onFileSelected={handleFileSelected}
           onAddManualItem={(item) => {
-            setItems((prev) => [item, ...prev]);
+            void (async () => {
+              await addManualItem(item.name);
+            })();
             setUploadOpen(false);
             notify(`Manually added ${item.name} to pantry.`);
           }}
@@ -774,8 +510,6 @@ export default function HomePage() {
             if (detail.productId) {
               await ignoreProductPrediction(detail.productId);
               await refreshData();
-            } else {
-              removeItem(detail.name);
             }
             setDetail(null);
             notify(`Milo will learn from removing ${detail.name}.`);
@@ -2451,30 +2185,6 @@ function ShoppingListView({
   );
 }
 
-function NavButton({
-  icon,
-  label,
-  active,
-  onClick,
-  id,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  id?: string;
-}) {
-  return (
-    <button
-      id={id}
-      onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${active ? "bg-[#e7f1e5] text-[#1d5b45]" : "hover:bg-white hover:text-[#2c4034]"}`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
 function MobileNav({
   icon,
   label,

@@ -2,7 +2,7 @@ import { slugify } from "../slugify";
 import { db } from "./dexie";
 import { updateProductsFromReceipt } from "./products";
 import { recalculatePredictions } from "../inventory/predictor";
-import { ReviewItem } from "../types/review-item";
+import type { ReviewItem } from "@/core/models/parsed";
 import { Type } from "@/core/models/type";
 
 export async function saveReceipt(

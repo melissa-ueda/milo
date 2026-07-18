@@ -1,15 +1,14 @@
 import { categoryEmoji } from "../categories";
-import type { Prediction } from "../types/prediction";
+import type { Prediction } from "@/core/models/prediction";
 import { db } from "../db/dexie";
-import { Household } from "../types/household";
+import type { Household } from "@/core/models/household";
 import { Category } from "@/core/models/category";
 import {
   predictWithGemini,
   type GeminiPrediction,
   type PredictionInput,
 } from "../ai/gemini";
-
-let cachedPredictions: Prediction[] = [];
+import { defaultHousehold, getSettings } from "../db/settings";
 
 /**
  * Calculates a baseline consumption interval (prior) for a product category
@@ -148,29 +147,11 @@ export async function recalculatePredictions(
 ): Promise<Prediction[]> {
   // Load household settings
   let activeHousehold = household;
-  if (!activeHousehold && typeof window !== "undefined") {
-    const saved = window.localStorage.getItem("milo-household");
-    if (saved) {
-      try {
-        activeHousehold = JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse household settings in predictor", e);
-      }
-    }
-  }
+  if (!activeHousehold) activeHousehold = (await getSettings()).household;
 
   // Fallback defaults if not found
   if (!activeHousehold) {
-    activeHousehold = {
-      name: "",
-      adults: 2,
-      children: 0,
-      pets: 1,
-      cadence: "Weekly",
-      day: "Friday",
-      cooking: "Most days",
-      preferences: "No preferences",
-    };
+    activeHousehold = defaultHousehold;
   }
 
   const products = await db.products.toArray();
@@ -269,8 +250,7 @@ export async function recalculatePredictions(
             new Date(a.predictedRunOutDate).getTime() -
             new Date(b.predictedRunOutDate).getTime(),
         );
-        cachedPredictions = aiResults;
-        return cachedPredictions;
+        return aiResults;
       }
       console.warn(
         "Gemini returned incomplete product predictions; using local fallback.",
@@ -302,7 +282,7 @@ export async function recalculatePredictions(
         lastPurchase: product.lastPurchase,
         predictedRunOutDate: "", // empty means learning phase
         confidence: 30, // low default
-        selected: false,
+        selected: product.selected ?? false,
       });
       continue;
     }
@@ -372,7 +352,8 @@ export async function recalculatePredictions(
 
     // 7. Auto-selection for shopping list: runs out before or on the next shop after next
     // i.e., runOutDate <= nextShopAfter
-    const selected = runOutDate.getTime() <= nextShopAfter.getTime();
+    const selected =
+      product.selected ?? runOutDate.getTime() <= nextShopAfter.getTime();
 
     predictions.push({
       productId: product.id,
@@ -393,18 +374,12 @@ export async function recalculatePredictions(
       new Date(b.predictedRunOutDate).getTime(),
   );
 
-  cachedPredictions = predictions;
-  return cachedPredictions;
-}
-
-export async function getPredictions(): Promise<Prediction[]> {
-  if (cachedPredictions.length === 0) {
-    return recalculatePredictions();
-  }
-  return cachedPredictions;
+  return predictions;
 }
 
 export function predictionToDisplayItem(prediction: Prediction) {
+  const learning =
+    !prediction.predictedRunOutDate || prediction.averageConsumptionDays <= 0;
   const runOut = new Date(prediction.predictedRunOutDate);
   const now = new Date();
   const daysUntil = Math.ceil(
@@ -412,21 +387,26 @@ export function predictionToDisplayItem(prediction: Prediction) {
   );
 
   let status: "Soon" | "This week" | "Later" = "Later";
+  if (learning) status = "Later";
   if (daysUntil <= 2) status = "Soon";
   else if (daysUntil <= 7) status = "This week";
 
-  const dueDay = runOut.toLocaleDateString("en-US", { weekday: "long" });
+  const dueDay = learning
+    ? "Still learning"
+    : runOut.toLocaleDateString("en-US", { weekday: "long" });
 
   // Calculate the percentage of product remaining
-  const percentRemaining = Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round(
-        (Math.max(0, daysUntil) / prediction.averageConsumptionDays) * 100,
-      ),
-    ),
-  );
+  const percentRemaining = learning
+    ? 100
+    : Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(
+            (Math.max(0, daysUntil) / prediction.averageConsumptionDays) * 100,
+          ),
+        ),
+      );
 
   // Calculate days since the last purchase
   const lastPurchase = new Date(prediction.lastPurchase);
@@ -439,13 +419,16 @@ export function predictionToDisplayItem(prediction: Prediction) {
     name: prediction.normalizedName,
     emoji: categoryEmoji[prediction.category],
     amount: "1",
-    remaining:
-      daysUntil <= 0
+    remaining: learning
+      ? "Newly added — learning your rhythm"
+      : daysUntil <= 0
         ? "Likely empty"
         : `About ${Math.max(1, Math.round((1 - daysUntil / prediction.averageConsumptionDays) * 100))}% used`,
-    due: daysUntil <= 0 ? "Now" : dueDay,
+    due: learning ? "Still learning" : daysUntil <= 0 ? "Now" : dueDay,
     confidence: prediction.confidence,
-    cadence: `Usually every ${prediction.averageConsumptionDays} days`,
+    cadence: learning
+      ? "Need another purchase to predict"
+      : `Usually every ${prediction.averageConsumptionDays} days`,
     status,
     selected: prediction.selected,
     percentRemaining,
@@ -453,36 +436,22 @@ export function predictionToDisplayItem(prediction: Prediction) {
   };
 }
 
-export function getNextShopLikelihood(household?: Household): {
+export function getNextShopLikelihood(
+  household?: Household,
+  predictions: Prediction[] = [],
+): {
   likely: boolean;
   confidence: number;
   day: string;
 } {
   // Load household settings
   let activeHousehold = household;
-  if (!activeHousehold && typeof window !== "undefined") {
-    const saved = window.localStorage.getItem("milo-household");
-    if (saved) {
-      try {
-        activeHousehold = JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse household settings in predictor", e);
-      }
-    }
-  }
+  // The screen normally supplies the current household. Keep this helper synchronous
+  // for rendering and use safe defaults when it is called without one.
 
   // Fallback defaults if not found
   if (!activeHousehold) {
-    activeHousehold = {
-      name: "",
-      adults: 2,
-      children: 0,
-      pets: 1,
-      cadence: "Weekly",
-      day: "Friday",
-      cooking: "Most days",
-      preferences: "No preferences",
-    };
+    activeHousehold = defaultHousehold;
   }
 
   const now = new Date();
@@ -493,7 +462,7 @@ export function getNextShopLikelihood(household?: Household): {
     cadenceDays,
   );
 
-  const soonItems = cachedPredictions.filter((p) => {
+  const soonItems = predictions.filter((p) => {
     const daysUntil = Math.ceil(
       (new Date(p.predictedRunOutDate).getTime() - now.getTime()) /
         (1000 * 60 * 60 * 24),

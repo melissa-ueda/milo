@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Check, ChevronRight, Pencil, X } from "lucide-react";
 import { categoryEmoji, categoryLabels } from "../lib/categories";
-import { ParsedReceipt } from "../lib/types/parsed-receipt";
-import { ReviewItem } from "@/lib/types/review-item";
+import type { ParsedReceipt, ReviewItem } from "@/core/models/parsed";
 import { Category, CATEGORY_LIST } from "@/core/models/category";
 
 type ReviewSheetProps = {

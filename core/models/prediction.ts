@@ -1,4 +1,4 @@
-import { Category } from "@/core/models/category";
+import type { Category } from "./category";
 
 export type Prediction = {
   productId: string;

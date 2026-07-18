@@ -1,12 +1,13 @@
 import Dexie, { type Table } from "dexie";
-import { ReceiptRecord } from "../types/receipt-record";
-import { ReceiptItemRecord } from "../types/receipt-item-record";
-import { ProductRecord } from "../types/product-record";
+import type { Receipt, ReceiptItem } from "@/core/models/receipt";
+import type { Product } from "@/core/models/product";
+import { AppSettings } from "@/core/models/household";
 
 class MiloDatabase extends Dexie {
-  receipts!: Table<ReceiptRecord>;
-  receiptItems!: Table<ReceiptItemRecord>;
-  products!: Table<ProductRecord>;
+  receipts!: Table<Receipt>;
+  receiptItems!: Table<ReceiptItem>;
+  products!: Table<Product>;
+  settings!: Table<AppSettings>;
 
   constructor() {
     super("milo");
@@ -14,6 +15,12 @@ class MiloDatabase extends Dexie {
       receipts: "id, date, store",
       receiptItems: "id, receiptId, normalizedName",
       products: "id, normalizedName, type, category, lastPurchase",
+    });
+    this.version(2).stores({
+      receipts: "id, date, store",
+      receiptItems: "id, receiptId, normalizedName",
+      products: "id, normalizedName, type, category, lastPurchase, selected",
+      settings: "id",
     });
   }
 }

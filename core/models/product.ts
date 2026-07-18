@@ -1,7 +1,7 @@
-import { Category } from "@/core/models/category";
-import { Type } from "@/core/models/type";
+import type { Category } from "./category";
+import type { Type } from "./type";
 
-export type ProductRecord = {
+export type Product = {
   id: string;
   normalizedName: string;
   type: Type;
@@ -9,4 +9,5 @@ export type ProductRecord = {
   averageConsumptionDays: number | null;
   lastPurchase: string;
   purchaseCount: number;
+  selected: boolean;
 };

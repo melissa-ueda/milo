@@ -1,4 +1,4 @@
-import { ParsedReceipt } from "../types/parsed-receipt";
+import type { ParsedReceipt } from "@/core/models/parsed";
 import { compressImage } from "./compress";
 import { parseReceiptWithGemini } from "../ai/gemini";
 

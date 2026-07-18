@@ -4,8 +4,6 @@ export const Cadences = {
   fourteen_days: "Every two weeks",
   variable: "It varies",
 } as const;
-export const CADENCE_LIST = Object.values(Cadences);
-export type Cadence = (typeof Cadences)[keyof typeof Cadences];
 
 export const ShoppingDays = {
   monday: "Monday",
@@ -17,16 +15,12 @@ export const ShoppingDays = {
   sunday: "Sunday",
   noUsualDay: "No usual day",
 } as const;
-export const SHOPPING_DAY_LIST = Object.values(ShoppingDays);
-export type ShoppingDay = (typeof ShoppingDays)[keyof typeof ShoppingDays];
 
 export const CookingTimes = {
   mostDays: "Most days",
   aFewDays: "A few days a week",
   rarely: "Rarely",
 } as const;
-export const COOKING_TIMES_LIST = Object.values(CookingTimes);
-export type CookingTime = (typeof CookingTimes)[keyof typeof CookingTimes];
 
 export const FoodPreferences = {
   noPreference: "No preferences",
@@ -35,7 +29,15 @@ export const FoodPreferences = {
   glutenFree: "Gluten-free",
   familyFriendly: "Family-friendly",
 } as const;
+
+export const CADENCE_LIST = Object.values(Cadences);
+export const SHOPPING_DAY_LIST = Object.values(ShoppingDays);
+export const COOKING_TIMES_LIST = Object.values(CookingTimes);
 export const FOOD_PREFERENCES_LIST = Object.values(FoodPreferences);
+
+export type Cadence = (typeof Cadences)[keyof typeof Cadences];
+export type ShoppingDay = (typeof ShoppingDays)[keyof typeof ShoppingDays];
+export type CookingTime = (typeof CookingTimes)[keyof typeof CookingTimes];
 export type FoodPreference =
   (typeof FoodPreferences)[keyof typeof FoodPreferences];
 
@@ -48,4 +50,11 @@ export type Household = {
   day: ShoppingDay;
   cooking: CookingTime;
   preferences: FoodPreference;
+};
+
+export type AppSettings = {
+  id: "app";
+  household: Household;
+  geminiApiKey: string;
+  onboarded: boolean;
 };

@@ -2,10 +2,10 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { PREDICTION_SYSTEM_PROMPT, RECEIPT_SYSTEM_PROMPT } from "./prompts";
-import { ParsedReceipt } from "../types/parsed-receipt";
+import type { ParsedReceipt } from "@/core/models/parsed";
 import { CATEGORY_LIST } from "@/core/models/category";
 import { TYPE_LIST } from "@/core/models/type";
-import type { Household } from "../types/household";
+import type { Household } from "@/core/models/household";
 
 const typeSchema = z.enum(TYPE_LIST as [string, ...string[]]);
 const categorySchema = z.enum(CATEGORY_LIST as [string, ...string[]]);
@@ -39,7 +39,7 @@ const predictionSchema = z.object({
   ),
 });
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.1-flash-lite";
 
 export async function parseReceiptWithGemini(
   imageBlob: Blob,

@@ -1,11 +1,11 @@
 import { slugify } from "../slugify";
 import { db } from "./dexie";
-import { ReceiptItemRecord } from "../types/receipt-item-record";
-import { ProductRecord } from "../types/product-record";
+import type { ReceiptItem } from "@/core/models/receipt";
 import { Category } from "@/core/models/category";
+import { Type } from "@/core/models/type";
 
 export async function updateProductsFromReceipt(
-  items: ReceiptItemRecord[],
+  items: ReceiptItem[],
   purchaseDate: string,
 ): Promise<void> {
   for (const item of items) {
@@ -45,24 +45,44 @@ export async function updateProductsFromReceipt(
         averageConsumptionDays: null,
         lastPurchase: purchaseDate,
         purchaseCount: 1,
+        selected: true,
       });
     }
   }
 }
 
-export async function getAllProducts(): Promise<ProductRecord[]> {
-  return db.products.toArray();
+export async function addManualProduct(input: {
+  name: string;
+  type?: Type;
+  category?: Category;
+}): Promise<void> {
+  const normalizedName = input.name.trim().toLowerCase();
+  if (!normalizedName) return;
+  const id = slugify(normalizedName);
+  const existing = await db.products.get(id);
+  if (existing) {
+    await db.products.update(id, {
+      lastPurchase: new Date().toISOString(),
+      purchaseCount: existing.purchaseCount + 1,
+      selected: true,
+    });
+    return;
+  }
+  await db.products.put({
+    id,
+    normalizedName: input.name.trim(),
+    type: input.type || ("other" as Type),
+    category: input.category || "other",
+    averageConsumptionDays: null,
+    lastPurchase: new Date().toISOString(),
+    purchaseCount: 1,
+    selected: true,
+  });
 }
 
-export async function getProduct(
+export async function setProductSelected(
   id: string,
-): Promise<ProductRecord | undefined> {
-  return db.products.get(id);
-}
-
-export async function updateProductCategory(
-  id: string,
-  category: Category,
+  selected: boolean,
 ): Promise<void> {
-  await db.products.update(id, { category });
+  await db.products.update(id, { selected });
 }
