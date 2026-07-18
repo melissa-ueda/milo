@@ -337,13 +337,18 @@ export default function HomePage() {
 
   const handleFileSelected = async (file: File) => {
     if (!geminiApiKey) {
-      setReceiptError("Please configure your Gemini API Key first (under Household settings or in onboarding).");
+      setReceiptError(
+        "Please configure your Gemini API Key first (under Household settings or in onboarding).",
+      );
       return;
     }
     setIsProcessingReceipt(true);
     setReceiptError("");
     try {
-      const { receipt, imageBlob } = await parseReceiptImage(file, geminiApiKey);
+      const { receipt, imageBlob } = await parseReceiptImage(
+        file,
+        geminiApiKey,
+      );
       setReviewReceipt(receipt);
       setReviewItems(toReviewItems(receipt.items));
       setReviewImageBlob(imageBlob);
@@ -412,8 +417,12 @@ export default function HomePage() {
         const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
         navigator.serviceWorker
           .register(`${basePath}/sw.js`)
-          .then((reg) => console.log("Service worker registered successfully:", reg))
-          .catch((err) => console.error("Service worker registration failed:", err));
+          .then((reg) =>
+            console.log("Service worker registered successfully:", reg),
+          )
+          .catch((err) =>
+            console.error("Service worker registration failed:", err),
+          );
       }
     }
   }, []);
@@ -656,8 +665,13 @@ export default function HomePage() {
                     })
                   }
                   onSave={() => {
-                    window.localStorage.setItem("milo-household", JSON.stringify(household));
-                    notify("Household settings saved. Milo will use these for future predictions.");
+                    window.localStorage.setItem(
+                      "milo-household",
+                      JSON.stringify(household),
+                    );
+                    notify(
+                      "Household settings saved. Milo will use these for future predictions.",
+                    );
                   }}
                   geminiApiKey={geminiApiKey}
                   setGeminiApiKey={(key) => {
@@ -943,7 +957,8 @@ function OnboardingProfile({
           <section className="rounded-2xl border border-[#e2e7de] bg-white p-4">
             <h2 className="font-semibold text-[#17261f]">Gemini API Key</h2>
             <p className="mt-1 text-xs text-[#718077]">
-              Milo runs entirely on your device. Enter your free Gemini API Key to enable receipt scanning.
+              Milo runs entirely on your device. Enter your free Gemini API Key
+              to enable receipt scanning.
             </p>
             <input
               type="password"
@@ -962,7 +977,8 @@ function OnboardingProfile({
                 className="text-[#1d5b45] underline font-semibold hover:text-[#174a38]"
               >
                 Google AI Studio
-              </a>.
+              </a>
+              .
             </span>
           </section>
           <section className="rounded-2xl border border-[#e2e7de] bg-white p-4">
@@ -1625,12 +1641,17 @@ function HouseholdView({
         <section className="rounded-2xl border border-[#e2e7de] bg-white p-5">
           <h2 className="font-semibold text-[#17261f]">Gemini API Key</h2>
           <p className="mt-1 text-xs text-[#718077]">
-            This key is used locally on your device to parse receipt photos. It is never uploaded to any server.
+            This key is used locally on your device to parse receipt photos. It
+            is never uploaded to any server.
           </p>
           <input
             type="password"
             aria-label="Gemini API Key"
-            placeholder={geminiApiKey ? "••••••••••••••••••••••••••••••••" : "Paste your API key here"}
+            placeholder={
+              geminiApiKey
+                ? "••••••••••••••••••••••••••••••••"
+                : "Paste your API key here"
+            }
             value={geminiApiKey}
             onChange={(e) => setGeminiApiKey(e.target.value)}
             className="mt-3 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3.5 py-2.5 text-sm font-medium text-[#17261f] outline-none focus:border-[#4b8460] transition"
@@ -1644,7 +1665,8 @@ function HouseholdView({
               className="text-[#1d5b45] underline font-semibold hover:text-[#174a38]"
             >
               Google AI Studio
-            </a>.
+            </a>
+            .
           </span>
         </section>
         <section className="rounded-2xl border border-[#e2e7de] bg-white p-5">

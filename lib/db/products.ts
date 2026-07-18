@@ -1,7 +1,7 @@
-import { slugify } from '../slugify';
-import type { Category } from '../categories';
-import type { ProductRecord, ReceiptItemRecord } from '../types/types';
-import { db } from './dexie';
+import { slugify } from "../slugify";
+import type { Category } from "../categories";
+import type { ProductRecord, ReceiptItemRecord } from "../types/types";
+import { db } from "./dexie";
 
 export async function updateProductsFromReceipt(
   items: ReceiptItemRecord[],
@@ -23,7 +23,10 @@ export async function updateProductsFromReceipt(
         avgDays =
           avgDays === null
             ? daysBetween
-            : Math.round((avgDays * existing.purchaseCount + daysBetween) / (existing.purchaseCount + 1));
+            : Math.round(
+                (avgDays * existing.purchaseCount + daysBetween) /
+                  (existing.purchaseCount + 1),
+              );
       }
 
       await db.products.update(productId, {
@@ -49,10 +52,15 @@ export async function getAllProducts(): Promise<ProductRecord[]> {
   return db.products.toArray();
 }
 
-export async function getProduct(id: string): Promise<ProductRecord | undefined> {
+export async function getProduct(
+  id: string,
+): Promise<ProductRecord | undefined> {
   return db.products.get(id);
 }
 
-export async function updateProductCategory(id: string, category: Category): Promise<void> {
+export async function updateProductCategory(
+  id: string,
+  category: Category,
+): Promise<void> {
   await db.products.update(id, { category });
 }

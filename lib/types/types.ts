@@ -1,5 +1,5 @@
-import type { Category } from '../categories';
-import { ParsedItem } from './parsed-item';
+import type { Category } from "../categories";
+import { ParsedItem } from "./parsed-item";
 
 export type ReviewItem = ParsedItem & {
   id: string;

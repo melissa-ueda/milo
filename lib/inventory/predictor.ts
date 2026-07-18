@@ -1,6 +1,6 @@
-import { categoryEmoji } from '../categories';
-import type { Prediction, ProductRecord } from '../types/types';
-import { db } from '../db/dexie';
+import { categoryEmoji } from "../categories";
+import type { Prediction, ProductRecord } from "../types/types";
+import { db } from "../db/dexie";
 
 let cachedPredictions: Prediction[] = [];
 
@@ -9,11 +9,12 @@ export async function recalculatePredictions(): Promise<Prediction[]> {
   const now = new Date();
 
   cachedPredictions = products
-    .filter(p => p.averageConsumptionDays !== null && p.purchaseCount >= 2)
-    .map(p => buildPrediction(p, now))
+    .filter((p) => p.averageConsumptionDays !== null && p.purchaseCount >= 2)
+    .map((p) => buildPrediction(p, now))
     .sort(
       (a, b) =>
-        new Date(a.predictedRunOutDate).getTime() - new Date(b.predictedRunOutDate).getTime(),
+        new Date(a.predictedRunOutDate).getTime() -
+        new Date(b.predictedRunOutDate).getTime(),
     );
 
   return cachedPredictions;
@@ -57,18 +58,21 @@ export function predictionToDisplayItem(prediction: Prediction) {
     (runOut.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
   );
 
-  let status: 'Soon' | 'This week' | 'Later' = 'Later';
-  if (daysUntil <= 2) status = 'Soon';
-  else if (daysUntil <= 7) status = 'This week';
+  let status: "Soon" | "This week" | "Later" = "Later";
+  if (daysUntil <= 2) status = "Soon";
+  else if (daysUntil <= 7) status = "This week";
 
-  const dueDay = runOut.toLocaleDateString('en-US', { weekday: 'long' });
+  const dueDay = runOut.toLocaleDateString("en-US", { weekday: "long" });
 
   return {
     name: prediction.normalizedName,
     emoji: categoryEmoji[prediction.category],
-    amount: '1',
-    remaining: daysUntil <= 0 ? 'Likely empty' : `About ${Math.max(1, Math.round((1 - daysUntil / prediction.averageConsumptionDays) * 100))}% used`,
-    due: daysUntil <= 0 ? 'Now' : dueDay,
+    amount: "1",
+    remaining:
+      daysUntil <= 0
+        ? "Likely empty"
+        : `About ${Math.max(1, Math.round((1 - daysUntil / prediction.averageConsumptionDays) * 100))}% used`,
+    due: daysUntil <= 0 ? "Now" : dueDay,
     confidence: prediction.confidence,
     cadence: `Usually every ${prediction.averageConsumptionDays} days`,
     status,
@@ -76,18 +80,24 @@ export function predictionToDisplayItem(prediction: Prediction) {
   };
 }
 
-export function getNextShopLikelihood(): { likely: boolean; confidence: number; day: string } {
-  const soonItems = cachedPredictions.filter(p => {
+export function getNextShopLikelihood(): {
+  likely: boolean;
+  confidence: number;
+  day: string;
+} {
+  const soonItems = cachedPredictions.filter((p) => {
     const daysUntil = Math.ceil(
-      (new Date(p.predictedRunOutDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      (new Date(p.predictedRunOutDate).getTime() - Date.now()) /
+        (1000 * 60 * 60 * 24),
     );
     return daysUntil <= 3;
   });
 
-  const confidence = soonItems.length > 0 ? Math.min(92, 60 + soonItems.length * 8) : 40;
+  const confidence =
+    soonItems.length > 0 ? Math.min(92, 60 + soonItems.length * 8) : 40;
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const day = tomorrow.toLocaleDateString('en-US', { weekday: 'long' });
+  const day = tomorrow.toLocaleDateString("en-US", { weekday: "long" });
 
   return { likely: soonItems.length >= 2, confidence, day };
 }

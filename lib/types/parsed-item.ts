@@ -1,4 +1,4 @@
-import type { Category } from '../categories';
+import type { Category } from "../categories";
 
 export type ParsedItem = {
   name: string;

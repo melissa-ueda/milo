@@ -44,7 +44,7 @@ jobs:
 
       - name: Build
         env:
-          NEXT_PUBLIC_BASE_PATH: '/milo'
+          NEXT_PUBLIC_BASE_PATH: "/milo"
         run: pnpm build
 
       - name: Setup GitHub Pages

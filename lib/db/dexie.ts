@@ -1,5 +1,9 @@
-import Dexie, { type Table } from 'dexie';
-import type { ProductRecord, ReceiptItemRecord, ReceiptRecord } from '../types/types';
+import Dexie, { type Table } from "dexie";
+import type {
+  ProductRecord,
+  ReceiptItemRecord,
+  ReceiptRecord,
+} from "../types/types";
 
 class MiloDatabase extends Dexie {
   receipts!: Table<ReceiptRecord>;
@@ -7,11 +11,11 @@ class MiloDatabase extends Dexie {
   products!: Table<ProductRecord>;
 
   constructor() {
-    super('milo');
+    super("milo");
     this.version(1).stores({
-      receipts: 'id, date, store',
-      receiptItems: 'id, receiptId, normalizedName',
-      products: 'id, normalizedName, category, lastPurchase',
+      receipts: "id, date, store",
+      receiptItems: "id, receiptId, normalizedName",
+      products: "id, normalizedName, category, lastPurchase",
     });
   }
 }

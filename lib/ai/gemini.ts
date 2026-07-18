@@ -1,9 +1,9 @@
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateObject } from 'ai';
-import { z } from 'zod';
-import { CATEGORY_LIST } from '../categories';
-import { RECEIPT_SYSTEM_PROMPT } from './prompts';
-import { ParsedReceipt } from '../types/parsed-receipt';
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateObject } from "ai";
+import { z } from "zod";
+import { CATEGORY_LIST } from "../categories";
+import { RECEIPT_SYSTEM_PROMPT } from "./prompts";
+import { ParsedReceipt } from "../types/parsed-receipt";
 
 const categorySchema = z.enum(CATEGORY_LIST as [string, ...string[]]);
 
@@ -23,7 +23,7 @@ const receiptSchema = z.object({
   ),
 });
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = "gemini-2.5-flash";
 
 export async function parseReceiptWithGemini(
   imageBlob: Blob,
@@ -49,10 +49,10 @@ export async function parseReceiptWithGemini(
     maxRetries: 1,
     messages: [
       {
-        role: 'user',
+        role: "user",
         content: [
-          { type: 'text', text: RECEIPT_SYSTEM_PROMPT },
-          { type: 'image', image: base64DataUrl },
+          { type: "text", text: RECEIPT_SYSTEM_PROMPT },
+          { type: "image", image: base64DataUrl },
         ],
       },
     ],
@@ -61,11 +61,19 @@ export async function parseReceiptWithGemini(
   return object as ParsedReceipt;
 }
 
-export function formatGeminiError(error: unknown): { message: string; status: number } {
-  const raw = error instanceof Error ? error.message : 'Failed to parse receipt';
+export function formatGeminiError(error: unknown): {
+  message: string;
+  status: number;
+} {
+  const raw =
+    error instanceof Error ? error.message : "Failed to parse receipt";
   const lower = raw.toLowerCase();
 
-  if (lower.includes('quota') || lower.includes('rate limit') || lower.includes('429')) {
+  if (
+    lower.includes("quota") ||
+    lower.includes("rate limit") ||
+    lower.includes("429")
+  ) {
     return {
       message: `Gemini quota exceeded. Please check your billing or quota at ai.google.dev.`,
       status: 429,
@@ -74,4 +82,3 @@ export function formatGeminiError(error: unknown): { message: string; status: nu
 
   return { message: raw, status: 500 };
 }
-

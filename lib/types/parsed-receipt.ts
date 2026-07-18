@@ -1,4 +1,4 @@
-import { ParsedItem } from './parsed-item';
+import { ParsedItem } from "./parsed-item";
 
 export type ParsedReceipt = {
   store: string;
