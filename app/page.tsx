@@ -409,7 +409,7 @@ export default function HomePage() {
 
       // Register service worker for PWA support
       if ("serviceWorker" in navigator) {
-        const basePath = process.env.NODE_ENV === "production" ? "/milo" : "";
+        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
         navigator.serviceWorker
           .register(`${basePath}/sw.js`)
           .then((reg) => console.log("Service worker registered successfully:", reg))

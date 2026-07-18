@@ -4,7 +4,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Milo · Household intelligence',
   description: 'Your household consumption companion',
-  manifest: '/manifest.json',
+  manifest: process.env.NEXT_PUBLIC_BASE_PATH
+    ? `${process.env.NEXT_PUBLIC_BASE_PATH}/manifest.json`
+    : '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
