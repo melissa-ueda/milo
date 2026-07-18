@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "pnpm exec prettier . --write && eslint",
     "prepare": "husky"
   },
   "dependencies": {

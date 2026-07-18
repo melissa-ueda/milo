@@ -3,6 +3,7 @@ import { db } from "./dexie";
 import { updateProductsFromReceipt } from "./products";
 import { recalculatePredictions } from "../inventory/predictor";
 import { ReviewItem } from "../types/review-item";
+import { Type } from "@/core/models/type";
 
 export async function saveReceipt(
   store: string,
@@ -27,6 +28,7 @@ export async function saveReceipt(
         id: crypto.randomUUID(),
         receiptId,
         normalizedName: item.normalizedName,
+        type: item.type,
         category: item.category,
         quantity: item.quantity,
         unit: item.unit,
@@ -62,6 +64,7 @@ export function toReviewItems(
   items: Array<{
     name: string;
     normalizedName: string;
+    type: Type;
     category: ReviewItem["category"];
     quantity: number;
     unit: string;

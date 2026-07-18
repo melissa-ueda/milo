@@ -1,10 +1,12 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { CATEGORY_LIST } from "../categories";
 import { RECEIPT_SYSTEM_PROMPT } from "./prompts";
 import { ParsedReceipt } from "../types/parsed-receipt";
+import { CATEGORY_LIST } from "@/core/models/category";
+import { TYPE_LIST } from "@/core/models/type";
 
+const typeSchema = z.enum(TYPE_LIST as [string, ...string[]]);
 const categorySchema = z.enum(CATEGORY_LIST as [string, ...string[]]);
 
 const receiptSchema = z.object({
@@ -14,6 +16,7 @@ const receiptSchema = z.object({
     z.object({
       name: z.string(),
       normalizedName: z.string(),
+      type: typeSchema,
       category: categorySchema,
       quantity: z.number(),
       unit: z.string(),

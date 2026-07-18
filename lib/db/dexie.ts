@@ -13,7 +13,7 @@ class MiloDatabase extends Dexie {
     this.version(1).stores({
       receipts: "id, date, store",
       receiptItems: "id, receiptId, normalizedName",
-      products: "id, normalizedName, category, lastPurchase",
+      products: "id, normalizedName, type, category, lastPurchase",
     });
   }
 }

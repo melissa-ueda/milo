@@ -397,6 +397,7 @@ export default function HomePage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (window.localStorage.getItem("milo-onboarded") === "true") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setOnboarding(false);
       }
       const savedHousehold = window.localStorage.getItem("milo-household");
@@ -969,7 +970,7 @@ function OnboardingProfile({
               className="mt-3 w-full rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-4 py-2.5 text-sm font-semibold text-[#17261f] outline-none focus:border-[#4b8460] transition"
             />
             <span className="mt-2 block text-[11px] text-[#718077]">
-              Don't have a key? Get one for free at{" "}
+              Don&apos;t have a key? Get one for free at{" "}
               <a
                 href="https://aistudio.google.com/"
                 target="_blank"

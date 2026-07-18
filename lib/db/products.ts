@@ -1,8 +1,8 @@
 import { slugify } from "../slugify";
-import type { Category } from "../categories";
 import { db } from "./dexie";
 import { ReceiptItemRecord } from "../types/receipt-item-record";
 import { ProductRecord } from "../types/product-record";
+import { Category } from "@/core/models/category";
 
 export async function updateProductsFromReceipt(
   items: ReceiptItemRecord[],
@@ -40,6 +40,7 @@ export async function updateProductsFromReceipt(
       await db.products.add({
         id: productId,
         normalizedName: item.normalizedName,
+        type: item.type,
         category: item.category,
         averageConsumptionDays: null,
         lastPurchase: purchaseDate,
