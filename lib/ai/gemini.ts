@@ -3,7 +3,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { CATEGORY_LIST } from '../categories';
 import { RECEIPT_SYSTEM_PROMPT } from './prompts';
-import type { ParsedReceipt } from '../types';
+import { ParsedReceipt } from '../types/parsed-receipt';
 
 const categorySchema = z.enum(CATEGORY_LIST as [string, ...string[]]);
 

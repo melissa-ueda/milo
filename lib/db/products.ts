@@ -1,6 +1,6 @@
 import { slugify } from '../slugify';
 import type { Category } from '../categories';
-import type { ProductRecord, ReceiptItemRecord } from '../types';
+import type { ProductRecord, ReceiptItemRecord } from '../types/types';
 import { db } from './dexie';
 
 export async function updateProductsFromReceipt(

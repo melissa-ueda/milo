@@ -1,10 +1,11 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Check, ChevronRight, Pencil, X } from 'lucide-react';
-import { CATEGORY_LIST, categoryEmoji, categoryLabels } from '@/lib/categories';
-import type { Category } from '@/lib/categories';
-import type { ParsedReceipt, ReviewItem } from '@/lib/types';
+import { useState } from "react";
+import { Check, ChevronRight, Pencil, X } from "lucide-react";
+import { CATEGORY_LIST, categoryEmoji, categoryLabels } from "@/lib/categories";
+import type { Category } from "@/lib/categories";
+import type { ReviewItem } from "@/lib/types/types";
+import { ParsedReceipt } from "@/lib/types/parsed-receipt";
 
 type ReviewSheetProps = {
   receipt: ParsedReceipt;
@@ -26,11 +27,13 @@ export function ReviewSheet({
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const removeItem = (id: string) => {
-    onItemsChange(items.filter(item => item.id !== id));
+    onItemsChange(items.filter((item) => item.id !== id));
   };
 
   const updateItem = (id: string, updates: Partial<ReviewItem>) => {
-    onItemsChange(items.map(item => (item.id === id ? { ...item, ...updates } : item)));
+    onItemsChange(
+      items.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+    );
   };
 
   const total = items.reduce((sum, item) => sum + item.price, 0);
@@ -49,7 +52,8 @@ export function ReviewSheet({
                 <h2 className="text-xl font-semibold">{receipt.store}</h2>
               </div>
               <p className="mt-0.5 text-sm text-[#718077]">
-                {items.length} item{items.length !== 1 ? 's' : ''} detected · €{total.toFixed(2)}
+                {items.length} item{items.length !== 1 ? "s" : ""} detected · €
+                {total.toFixed(2)}
               </p>
             </div>
             <button
@@ -62,12 +66,12 @@ export function ReviewSheet({
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-2">
-            {items.map(item =>
+            {items.map((item) =>
               editingId === item.id ? (
                 <EditItemRow
                   key={item.id}
                   item={item}
-                  onSave={updates => {
+                  onSave={(updates) => {
                     updateItem(item.id, updates);
                     setEditingId(null);
                   }}
@@ -78,9 +82,13 @@ export function ReviewSheet({
                   key={item.id}
                   className="flex items-center gap-3 rounded-xl bg-[#f7f8f5] p-3"
                 >
-                  <span className="text-2xl">{categoryEmoji[item.category]}</span>
+                  <span className="text-2xl">
+                    {categoryEmoji[item.category]}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm">{item.normalizedName}</p>
+                    <p className="font-semibold text-sm">
+                      {item.normalizedName}
+                    </p>
                     <p className="text-xs text-[#718077]">
                       {item.quantity} {item.unit} · €{item.price.toFixed(2)}
                     </p>
@@ -110,7 +118,7 @@ export function ReviewSheet({
               disabled={saving || items.length === 0}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1d5b45] py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#b7c9ba]"
             >
-              {saving ? 'Saving…' : `Save ${items.length} items`}
+              {saving ? "Saving…" : `Save ${items.length} items`}
               {!saving && <ChevronRight size={18} />}
             </button>
             <p className="text-center text-xs text-[#829087]">
@@ -152,16 +160,16 @@ function EditItemRow({
     <div className="rounded-xl border border-[#28704c] bg-[#eef5eb] p-4 space-y-3">
       <input
         value={name}
-        onChange={e => setName(e.target.value)}
+        onChange={(e) => setName(e.target.value)}
         className="w-full rounded-lg border border-[#dce5da] bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-[#4b8460]"
         placeholder="Product name"
       />
       <select
         value={category}
-        onChange={e => setCategory(e.target.value as Category)}
+        onChange={(e) => setCategory(e.target.value as Category)}
         className="w-full rounded-lg border border-[#dce5da] bg-white px-3 py-2 text-sm outline-none focus:border-[#4b8460]"
       >
-        {CATEGORY_LIST.map(cat => (
+        {CATEGORY_LIST.map((cat) => (
           <option key={cat} value={cat}>
             {categoryEmoji[cat]} {categoryLabels[cat]}
           </option>
@@ -171,13 +179,13 @@ function EditItemRow({
         <input
           type="number"
           value={quantity}
-          onChange={e => setQuantity(e.target.value)}
+          onChange={(e) => setQuantity(e.target.value)}
           className="rounded-lg border border-[#dce5da] bg-white px-3 py-2 text-sm outline-none focus:border-[#4b8460]"
           placeholder="Qty"
         />
         <input
           value={unit}
-          onChange={e => setUnit(e.target.value)}
+          onChange={(e) => setUnit(e.target.value)}
           className="rounded-lg border border-[#dce5da] bg-white px-3 py-2 text-sm outline-none focus:border-[#4b8460]"
           placeholder="Unit"
         />
@@ -185,7 +193,7 @@ function EditItemRow({
           type="number"
           step="0.01"
           value={price}
-          onChange={e => setPrice(e.target.value)}
+          onChange={(e) => setPrice(e.target.value)}
           className="rounded-lg border border-[#dce5da] bg-white px-3 py-2 text-sm outline-none focus:border-[#4b8460]"
           placeholder="Price"
         />

@@ -1,5 +1,5 @@
+import { ParsedReceipt } from '../types/parsed-receipt';
 import { compressImage } from './compress';
-import type { ParsedReceipt } from '../types';
 
 export async function parseReceiptImage(file: File): Promise<{ receipt: ParsedReceipt; imageBlob: Blob }> {
   const compressed = await compressImage(file);

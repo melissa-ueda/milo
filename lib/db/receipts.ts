@@ -1,5 +1,5 @@
 import { slugify } from '../slugify';
-import type { ReviewItem } from '../types';
+import type { ReviewItem } from '../types/types';
 import { db } from './dexie';
 import { updateProductsFromReceipt } from './products';
 import { recalculatePredictions } from '../inventory/predictor';
