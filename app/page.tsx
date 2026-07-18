@@ -36,6 +36,9 @@ import {
   getNextShopLikelihood,
   predictionToDisplayItem,
   recalculatePredictions,
+  recordStillHaveFeedback,
+  recordRanOutFeedback,
+  ignoreProductPrediction,
 } from "../lib/inventory/predictor";
 import { parseReceiptImage } from "../lib/image/upload";
 import { ParsedReceipt } from "../lib/types/parsed-receipt";
@@ -50,6 +53,7 @@ import { ReviewItem } from "@/lib/types/review-item";
 import { SelectField } from "@/components/SelectField";
 
 type Item = {
+  productId?: string;
   name: string;
   emoji: string;
   amount: string;
@@ -59,6 +63,8 @@ type Item = {
   cadence: string;
   status: "Soon" | "This week" | "Later";
   selected: boolean;
+  percentRemaining?: number;
+  daysSinceLastPurchase?: number;
 };
 
 function emojiForProduct(name: string) {
@@ -281,9 +287,9 @@ export default function HomePage() {
     [items, extraShoppingItems],
   );
   const nextShop = useMemo(
-    () => getNextShopLikelihood(),
+    () => getNextShopLikelihood(household),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items, purchases, dataLoaded],
+    [items, purchases, dataLoaded, household],
   );
 
   const toggle = (name: string) =>
@@ -305,7 +311,7 @@ export default function HomePage() {
   };
 
   const refreshData = useCallback(async () => {
-    await recalculatePredictions();
+    await recalculatePredictions(household);
     const predictions = await getPredictions();
     if (predictions.length > 0) {
       setItems(predictions.map(predictionToDisplayItem));
@@ -335,7 +341,7 @@ export default function HomePage() {
       setPurchases(purchaseList);
     }
     setDataLoaded(true);
-  }, []);
+  }, [household]);
 
   const openUpload = () => {
     setReceiptError("");
@@ -764,40 +770,55 @@ export default function HomePage() {
         <DetailModal
           item={detail}
           onClose={() => setDetail(null)}
-          onRemove={() => {
-            removeItem(detail.name);
+          onRemove={async () => {
+            if (detail.productId) {
+              await ignoreProductPrediction(detail.productId);
+              await refreshData();
+            } else {
+              removeItem(detail.name);
+            }
             setDetail(null);
             notify(`Milo will learn from removing ${detail.name}.`);
           }}
-          onStillHave={() => {
-            setItems((current) =>
-              current.map((item) =>
-                item.name === detail.name
-                  ? {
-                      ...item,
-                      remaining: "About half left",
-                      selected: false,
-                      confidence: 100,
-                    }
-                  : item,
-              ),
-            );
+          onStillHave={async () => {
+            if (detail.productId) {
+              await recordStillHaveFeedback(detail.productId);
+              await refreshData();
+            } else {
+              setItems((current) =>
+                current.map((item) =>
+                  item.name === detail.name
+                    ? {
+                        ...item,
+                        remaining: "About half left",
+                        selected: false,
+                        confidence: 100,
+                      }
+                    : item,
+                ),
+              );
+            }
             setDetail(null);
             notify(`Thanks — Milo learned that you still have ${detail.name}.`);
           }}
-          onRanOut={() => {
-            setItems((current) =>
-              current.map((item) =>
-                item.name === detail.name
-                  ? {
-                      ...item,
-                      remaining: "Empty",
-                      selected: false,
-                      confidence: 100,
-                    }
-                  : item,
-              ),
-            );
+          onRanOut={async () => {
+            if (detail.productId) {
+              await recordRanOutFeedback(detail.productId);
+              await refreshData();
+            } else {
+              setItems((current) =>
+                current.map((item) =>
+                  item.name === detail.name
+                    ? {
+                        ...item,
+                        remaining: "Empty",
+                        selected: false,
+                        confidence: 100,
+                      }
+                    : item,
+                ),
+              );
+            }
             setDetail(null);
             notify(`Thanks — Milo learned that ${detail.name} ran out.`);
           }}
@@ -1571,7 +1592,13 @@ function InventoryView({
             <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#edf0eb]">
               <div
                 className="h-full rounded-full bg-[#6ca976]"
-                style={{ width: `${Math.max(18, 100 - i.confidence)}%` }}
+                style={{
+                  width: `${
+                    i.percentRemaining !== undefined
+                      ? i.percentRemaining
+                      : Math.max(18, 100 - i.confidence)
+                  }%`,
+                }}
               />
             </div>
           </button>
@@ -2158,10 +2185,19 @@ function DetailModal({
             </div>
             <p className="mt-2 text-sm leading-6 text-[#52705c]">
               Your household typically uses {item.name.toLowerCase()}{" "}
-              {item.cadence.replace("Usually ", "").toLowerCase()}. You last
-              bought it 4 days ago and have {item.remaining.toLowerCase()}. At
-              your next likely shop tomorrow, you&apos;ll be close to running
-              out by {item.due}.
+              {item.cadence.replace("Usually ", "").toLowerCase()}.
+              {item.daysSinceLastPurchase !== undefined
+                ? ` You last bought it ${
+                    item.daysSinceLastPurchase === 0
+                      ? "today"
+                      : item.daysSinceLastPurchase === 1
+                        ? "yesterday"
+                        : `${item.daysSinceLastPurchase} days ago`
+                  } and have ${item.remaining.toLowerCase()}.`
+                : ` You last bought it 4 days ago and have ${item.remaining.toLowerCase()}.`}
+              {item.due === "Now"
+                ? " It is likely empty now and should be replenished."
+                : ` It is predicted to run out by ${item.due}.`}
             </p>
           </div>
           <p className="mt-5 text-sm font-semibold text-[#596b60]">
