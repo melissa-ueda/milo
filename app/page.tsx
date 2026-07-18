@@ -7,10 +7,8 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
-  Coffee,
   Home,
   Leaf,
-  MoreHorizontal,
   PackageOpen,
   Plus,
   ReceiptText,
@@ -275,6 +273,7 @@ export default function HomePage() {
   );
   const nextShop = useMemo(
     () => getNextShopLikelihood(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [items, purchases, dataLoaded],
   );
 
@@ -386,10 +385,12 @@ export default function HomePage() {
 
   useEffect(() => {
     if (window.localStorage.getItem("milo-onboarded") === "true")
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOnboarding(false);
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!onboarding) refreshData();
   }, [onboarding, refreshData]);
 
@@ -968,136 +969,6 @@ function OnboardingProfile({
       </button>
       <p className="mt-4 text-center text-xs text-[#829087]">
         You can change these details anytime in Household settings.
-      </p>
-    </div>
-  );
-}
-
-function OnboardingFirstItem({
-  onComplete,
-}: {
-  onComplete: (firstItem?: Item) => void;
-}) {
-  const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🥛");
-  const [amount, setAmount] = useState("1 pack");
-  const [remaining, setRemaining] = useState("About half left");
-  const commonEmojis = ["🥛", "🥚", "🍞", "☕", "🍎", "🥦", "🧀", "🫒"];
-
-  const addItem = () => {
-    if (!name.trim()) return;
-    onComplete({
-      name: name.trim(),
-      emoji: emojiForProduct(name) || emoji,
-      amount,
-      remaining,
-      due: "Friday",
-      confidence: 100,
-      cadence: "Usually every 7 days",
-      status: "Soon",
-      selected: true,
-    });
-  };
-
-  return (
-    <div className="flex min-h-screen flex-col px-6 pb-8 pt-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#1d5b45] text-lg text-white">
-            m
-          </span>
-          <span className="text-lg font-semibold tracking-tight">milo</span>
-        </div>
-        <span className="text-xs font-semibold text-[#718077]">
-          Step 3 of 3
-        </span>
-      </div>
-      <div className="flex-1 py-10">
-        <p className="text-sm font-semibold uppercase tracking-[.16em] text-[#5e7166]">
-          Give Milo a starting point
-        </p>
-        <h1 className="mt-2 text-[34px] font-semibold leading-tight tracking-[-.035em]">
-          What&apos;s one thing you always have at home?
-        </h1>
-        <p className="mt-3 text-[15px] leading-6 text-[#67786e]">
-          Add one grocery item so Milo can start learning your household&apos;s
-          rhythm. You can add more with a receipt anytime.
-        </p>
-        <div className="mt-8 space-y-5">
-          <label className="block text-sm font-semibold text-[#596b60]">
-            First grocery item
-            <input
-              aria-label="First grocery item"
-              autoFocus
-              placeholder="e.g. Whole milk"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-[#dce5da] bg-white px-4 py-3 text-base font-medium text-[#17261f] outline-none focus:border-[#4b8460]"
-            />
-          </label>
-          <div>
-            <p className="text-sm font-semibold text-[#596b60]">
-              Choose an icon
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {commonEmojis.map((option) => (
-                <button
-                  type="button"
-                  key={option}
-                  onClick={() => setEmoji(option)}
-                  className={`grid h-10 w-10 place-items-center rounded-xl border text-xl ${emoji === option ? "border-[#28704c] bg-[#eef5eb]" : "border-[#e2e7de] bg-white"}`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-sm font-semibold text-[#596b60]">
-              Pack size
-              <input
-                aria-label="Pack size"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-[#dce5da] bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#4b8460]"
-              />
-            </label>
-            <label className="block text-sm font-semibold text-[#596b60]">
-              How much is left?
-              <select
-                aria-label="How much is left"
-                value={remaining}
-                onChange={(event) => setRemaining(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-[#dce5da] bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#4b8460]"
-              >
-                <option>Full</option>
-                <option>About half left</option>
-                <option>About 1/4 left</option>
-                <option>Empty</option>
-              </select>
-            </label>
-          </div>
-        </div>
-      </div>
-      <div className="space-y-3">
-        <button
-          id="add-first-item-btn"
-          onClick={addItem}
-          disabled={!name.trim()}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1d5b45] px-5 py-4 text-base font-semibold text-white shadow-sm transition hover:bg-[#174a38] disabled:cursor-not-allowed disabled:bg-[#b7c9ba]"
-        >
-          Add item and continue <ArrowRight size={18} />
-        </button>
-        <button
-          id="skip-first-item-btn"
-          onClick={() => onComplete()}
-          className="w-full rounded-xl py-3 text-sm font-semibold text-[#5f7465]"
-        >
-          I&apos;ll add items later
-        </button>
-      </div>
-      <p className="mt-4 text-center text-xs text-[#829087]">
-        Milo only predicts from what you choose to share.
       </p>
     </div>
   );
@@ -2350,109 +2221,6 @@ function PurchaseDetailModal({
               </span>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ShoppingListModal({
-  items,
-  onClose,
-  onAddItem,
-}: {
-  items: Item[];
-  onClose: () => void;
-  onAddItem: (name: string) => void;
-}) {
-  const [newItem, setNewItem] = useState("");
-  const addItem = () => {
-    const name = newItem.trim();
-    if (!name) return;
-    onAddItem(name);
-    setNewItem("");
-  };
-  return (
-    <div className="fixed inset-0 z-40 flex justify-center bg-[#10231a]/35">
-      <div className="flex w-full max-w-[430px] items-end">
-        <div className="w-full rounded-t-3xl bg-white p-6 shadow-2xl">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[.12em] text-[#6c7e72]">
-                For your next shop
-              </p>
-              <h2 className="mt-1 text-2xl font-semibold">Shopping list</h2>
-              <p className="mt-1 text-sm text-[#718077]">
-                {items.length} items included. Add anything Milo could not know
-                about.
-              </p>
-            </div>
-            <button
-              id="close-shopping-list-modal"
-              onClick={onClose}
-              className="rounded-full p-2 hover:bg-[#f4f6f2]"
-            >
-              <X size={19} />
-            </button>
-          </div>
-          <div className="mt-5 space-y-2">
-            {items.length > 0 ? (
-              items.map((item, index) => (
-                <div
-                  key={`${item.name}-${index}`}
-                  className="flex items-center gap-3 rounded-xl bg-[#f7f8f5] p-3"
-                >
-                  <span className="text-2xl">{item.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{item.name}</p>
-                    <p className="text-xs text-[#718077]">
-                      {item.amount} ·{" "}
-                      {item.cadence === "Added manually"
-                        ? "Added by you"
-                        : `likely out ${item.due}`}
-                    </p>
-                  </div>
-                  <Check size={17} className="text-[#28704c]" />
-                </div>
-              ))
-            ) : (
-              <p className="rounded-xl bg-[#f7f8f5] p-4 text-sm text-[#718077]">
-                No items included yet. Return to recommendations to choose what
-                you need.
-              </p>
-            )}
-          </div>
-          <div className="mt-4 flex gap-2">
-            <input
-              aria-label="Add another shopping list item"
-              placeholder="Add something else…"
-              value={newItem}
-              onChange={(event) => setNewItem(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") addItem();
-              }}
-              className="min-w-0 flex-1 rounded-xl border border-[#dce5da] bg-[#fbfdf9] px-3 py-2.5 text-sm outline-none focus:border-[#4b8460]"
-            />
-            <button
-              id="add-shopping-list-item-btn"
-              onClick={addItem}
-              disabled={!newItem.trim()}
-              className="rounded-xl bg-[#eef5eb] px-3.5 text-sm font-semibold text-[#28704c] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Add
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-[#829087]">
-            Milo will remember this as something you chose, not something it
-            predicted.
-          </p>
-          <button
-            id="done-shopping-list-btn"
-            onClick={onClose}
-            className="mt-5 w-full rounded-xl bg-[#1d5b45] py-3 text-sm font-semibold text-white"
-          >
-            Done
-          </button>
         </div>
       </div>
     </div>
