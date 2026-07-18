@@ -243,7 +243,7 @@ const mockPurchases: Purchase[] = [
 ];
 
 export default function HomePage() {
-  const [items, setItems] = useState(starterItems);
+  const [items, setItems] = useState<Item[]>([]);
   const [extraShoppingItems, setExtraShoppingItems] = useState<Item[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [tab, setTab] = useState<
@@ -311,7 +311,7 @@ export default function HomePage() {
   };
 
   const refreshData = useCallback(async () => {
-    await recalculatePredictions(household);
+    await recalculatePredictions(household, geminiApiKey);
     const predictions = await getPredictions();
     if (predictions.length > 0) {
       setItems(predictions.map(predictionToDisplayItem));
@@ -341,7 +341,7 @@ export default function HomePage() {
       setPurchases(purchaseList);
     }
     setDataLoaded(true);
-  }, [household]);
+  }, [household, geminiApiKey]);
 
   const openUpload = () => {
     setReceiptError("");
@@ -447,7 +447,7 @@ export default function HomePage() {
   }, [onboarding, refreshData]);
 
   const startApp = (firstItem?: Item) => {
-    setItems(firstItem ? [firstItem, ...starterItems] : starterItems);
+    setItems(firstItem ? [firstItem] : []);
     window.localStorage.setItem("milo-onboarded", "true");
     window.localStorage.setItem("milo-household", JSON.stringify(household));
     setOnboarding(false);
@@ -663,7 +663,7 @@ export default function HomePage() {
               )}
               {tab === "history" && (
                 <HistoryView
-                  purchases={purchases.length > 0 ? purchases : mockPurchases}
+                  purchases={purchases}
                   onUpload={openUpload}
                   onPurchaseClick={setSelectedPurchase}
                   onDeletePurchase={handleDeletePurchase}
@@ -957,7 +957,7 @@ function OnboardingProfile({
           <span className="text-lg font-semibold tracking-tight">milo</span>
         </div>
         <span className="text-xs font-semibold text-[#718077]">
-          Step 2 of 2
+          Step 2 of 3
         </span>
       </div>
       <div className="flex-1 py-10">
@@ -987,7 +987,7 @@ function OnboardingProfile({
             <h2 className="font-semibold text-[#17261f]">Gemini API Key</h2>
             <p className="mt-1 text-xs text-[#718077]">
               Milo runs entirely on your device. Enter your free Gemini API Key
-              to enable receipt scanning.
+              to enable receipt scanning and AI-powered grocery predictions.
             </p>
             <input
               type="password"
@@ -1445,29 +1445,47 @@ function HomeView({
           {selected.length} included
         </button>
       </div>
-      <div className="mt-4 space-y-3">
-        {items.map((item) => (
-          <Recommendation
-            key={item.name}
-            item={item}
-            onToggle={onToggle}
-            onDetail={onDetail}
-          />
-        ))}
-      </div>
-      <button
-        id="open-shopping-list-btn"
-        onClick={onList}
-        className="mt-4 flex w-full items-center justify-between rounded-2xl bg-[#e7f2e7] px-4 py-3.5 text-left text-sm font-semibold text-[#1d5b45]"
-      >
-        <span>View your shopping list</span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="text-xs font-medium text-[#5f7d68]">
-            {selected.length} items included
-          </span>
-          <ArrowRight size={16} />
-        </span>
-      </button>
+      {items.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-[#b9cbb9] bg-[#fbfdf9] p-5">
+          <p className="font-semibold">Start with your first receipt</p>
+          <p className="mt-1 text-sm leading-6 text-[#718077]">
+            Milo needs a few real grocery purchases before it can predict what
+            your household will need next.
+          </p>
+          <button
+            onClick={onUpload}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#1d5b45] px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            Add a receipt <Upload size={16} />
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 space-y-3">
+            {items.map((item) => (
+              <Recommendation
+                key={item.name}
+                item={item}
+                onToggle={onToggle}
+                onDetail={onDetail}
+              />
+            ))}
+          </div>
+          <button
+            id="open-shopping-list-btn"
+            onClick={onList}
+            className="mt-4 flex w-full items-center justify-between rounded-2xl bg-[#e7f2e7] px-4 py-3.5 text-left text-sm font-semibold text-[#1d5b45]"
+          >
+            <span>View your shopping list</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="text-xs font-medium text-[#5f7d68]">
+                {selected.length} items included
+              </span>
+              <ArrowRight size={16} />
+            </span>
+          </button>
+        </>
+      )}
       <div className="mt-7 rounded-2xl border border-[#e2e7de] bg-white p-5">
         <div className="flex gap-3">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#eef5eb] text-[#2c714e]">
@@ -1650,8 +1668,8 @@ function HouseholdView({
         <section className="rounded-2xl border border-[#e2e7de] bg-white p-5">
           <h2 className="font-semibold text-[#17261f]">Gemini API Key</h2>
           <p className="mt-1 text-xs text-[#718077]">
-            This key is used locally on your device to parse receipt photos. It
-            is never uploaded to any server.
+            This key is used locally on your device for receipt reading and
+            grocery predictions. It is never uploaded to any server.
           </p>
           <input
             type="password"
@@ -1793,39 +1811,46 @@ function HistoryView({
         Shopping history
       </h1>
       <div className="mt-7 overflow-hidden rounded-2xl border border-[#e2e7de] bg-white">
-        {purchases.map((p, i) => (
-          <div
-            key={p.id}
-            className="flex items-center gap-3 border-b border-[#edf0eb] p-4 last:border-0"
-          >
-            <button
-              id={`purchase-item-${i}`}
-              onClick={() => onPurchaseClick(p)}
-              className="flex min-w-0 flex-1 items-center gap-4 text-left outline-none"
-            >
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#eef5eb] text-[#28704c]">
-                <ShoppingBag size={18} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold">{p.store}</p>
-                <p className="text-sm text-[#738077]">
-                  {p.date} · {p.itemCount}
-                </p>
-              </div>
-              <span className="text-sm font-medium">{p.total}</span>
-              <ChevronRight size={18} className="shrink-0 text-[#9aa79f]" />
-            </button>
-            <button
-              id={`delete-purchase-${i}`}
-              onClick={() => onDeletePurchase(p.id)}
-              aria-label={`Delete ${p.store} receipt from ${p.date}`}
-              title="Delete receipt"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#a26a60] hover:bg-[#fdf1ef]"
-            >
-              <Trash2 size={16} />
-            </button>
+        {purchases.length === 0 ? (
+          <div className="p-5 text-sm leading-6 text-[#718077]">
+            No receipts yet. Add your first receipt and Milo will start learning
+            your household&apos;s grocery rhythm.
           </div>
-        ))}
+        ) : (
+          purchases.map((p, i) => (
+            <div
+              key={p.id}
+              className="flex items-center gap-3 border-b border-[#edf0eb] p-4 last:border-0"
+            >
+              <button
+                id={`purchase-item-${i}`}
+                onClick={() => onPurchaseClick(p)}
+                className="flex min-w-0 flex-1 items-center gap-4 text-left outline-none"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#eef5eb] text-[#28704c]">
+                  <ShoppingBag size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{p.store}</p>
+                  <p className="text-sm text-[#738077]">
+                    {p.date} · {p.itemCount}
+                  </p>
+                </div>
+                <span className="text-sm font-medium">{p.total}</span>
+                <ChevronRight size={18} className="shrink-0 text-[#9aa79f]" />
+              </button>
+              <button
+                id={`delete-purchase-${i}`}
+                onClick={() => onDeletePurchase(p.id)}
+                aria-label={`Delete ${p.store} receipt from ${p.date}`}
+                title="Delete receipt"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#a26a60] hover:bg-[#fdf1ef]"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))
+        )}
       </div>
       <button
         id="scan-receipt-btn"

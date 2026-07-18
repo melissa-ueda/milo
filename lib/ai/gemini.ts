@@ -1,10 +1,11 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { RECEIPT_SYSTEM_PROMPT } from "./prompts";
+import { PREDICTION_SYSTEM_PROMPT, RECEIPT_SYSTEM_PROMPT } from "./prompts";
 import { ParsedReceipt } from "../types/parsed-receipt";
 import { CATEGORY_LIST } from "@/core/models/category";
 import { TYPE_LIST } from "@/core/models/type";
+import type { Household } from "../types/household";
 
 const typeSchema = z.enum(TYPE_LIST as [string, ...string[]]);
 const categorySchema = z.enum(CATEGORY_LIST as [string, ...string[]]);
@@ -22,6 +23,18 @@ const receiptSchema = z.object({
       unit: z.string(),
       price: z.number(),
       confidence: z.number(),
+    }),
+  ),
+});
+
+const predictionSchema = z.object({
+  predictions: z.array(
+    z.object({
+      normalizedName: z.string(),
+      averageConsumptionDays: z.number().int().min(1).max(120),
+      predictedRunOutDate: z.string(),
+      confidence: z.number().int().min(0).max(100),
+      selected: z.boolean(),
     }),
   ),
 });
@@ -62,6 +75,41 @@ export async function parseReceiptWithGemini(
   });
 
   return object as ParsedReceipt;
+}
+
+export type PredictionInput = {
+  normalizedName: string;
+  category: string;
+  purchaseDates: string[];
+  lastPurchase: string;
+  purchaseCount: number;
+};
+
+export type GeminiPrediction = z.infer<
+  typeof predictionSchema
+>["predictions"][number];
+
+export async function predictWithGemini(
+  household: Household,
+  products: PredictionInput[],
+  today: string,
+  nextShoppingDate: string,
+  apiKey: string,
+): Promise<GeminiPrediction[]> {
+  const google = createGoogleGenerativeAI({ apiKey });
+  const { object } = await generateObject({
+    model: google(DEFAULT_MODEL),
+    schema: predictionSchema,
+    maxRetries: 1,
+    messages: [
+      {
+        role: "user",
+        content: `${PREDICTION_SYSTEM_PROMPT}\n\nToday: ${today}\nNext likely shopping date: ${nextShoppingDate}\nHousehold profile:\n${JSON.stringify(household)}\nKnown products and purchase history:\n${JSON.stringify(products)}`,
+      },
+    ],
+  });
+
+  return object.predictions;
 }
 
 export function formatGeminiError(error: unknown): {

@@ -3,6 +3,11 @@ import type { Prediction } from "../types/prediction";
 import { db } from "../db/dexie";
 import { Household } from "../types/household";
 import { Category } from "@/core/models/category";
+import {
+  predictWithGemini,
+  type GeminiPrediction,
+  type PredictionInput,
+} from "../ai/gemini";
 
 let cachedPredictions: Prediction[] = [];
 
@@ -139,6 +144,7 @@ function getNextShoppingDates(
 
 export async function recalculatePredictions(
   household?: Household,
+  apiKey?: string,
 ): Promise<Prediction[]> {
   // Load household settings
   let activeHousehold = household;
@@ -199,6 +205,80 @@ export async function recalculatePredictions(
   }
 
   const predictions: Prediction[] = [];
+
+  if (apiKey?.trim() && products.length > 0) {
+    const predictionInputs: PredictionInput[] = products.map((product) => ({
+      normalizedName: product.normalizedName,
+      category: product.category,
+      purchaseDates: Array.from(
+        productDatesMap.get(product.normalizedName.toLowerCase()) || [],
+      ),
+      lastPurchase: product.lastPurchase,
+      purchaseCount: product.purchaseCount,
+    }));
+
+    try {
+      const aiPredictions = await predictWithGemini(
+        activeHousehold,
+        predictionInputs,
+        now.toISOString(),
+        nextShopAfter.toISOString(),
+        apiKey,
+      );
+      const byName = new Map(
+        aiPredictions.map((prediction) => [
+          prediction.normalizedName.toLowerCase(),
+          prediction,
+        ]),
+      );
+      const matched = products.map((product) => ({
+        product,
+        prediction: byName.get(product.normalizedName.toLowerCase()),
+      }));
+
+      if (matched.every(({ prediction }) => prediction)) {
+        const aiResults: Prediction[] = [];
+        for (const { product, prediction } of matched) {
+          const result = prediction as GeminiPrediction;
+          const runOutDate = new Date(result.predictedRunOutDate);
+          if (Number.isNaN(runOutDate.getTime())) {
+            throw new Error(
+              `Gemini returned an invalid date for ${product.normalizedName}`,
+            );
+          }
+          if (
+            product.averageConsumptionDays !== result.averageConsumptionDays
+          ) {
+            await db.products.update(product.id, {
+              averageConsumptionDays: result.averageConsumptionDays,
+            });
+          }
+          aiResults.push({
+            productId: product.id,
+            normalizedName: product.normalizedName,
+            category: product.category,
+            averageConsumptionDays: result.averageConsumptionDays,
+            lastPurchase: product.lastPurchase,
+            predictedRunOutDate: runOutDate.toISOString(),
+            confidence: result.confidence,
+            selected: result.selected,
+          });
+        }
+        aiResults.sort(
+          (a, b) =>
+            new Date(a.predictedRunOutDate).getTime() -
+            new Date(b.predictedRunOutDate).getTime(),
+        );
+        cachedPredictions = aiResults;
+        return cachedPredictions;
+      }
+      console.warn(
+        "Gemini returned incomplete product predictions; using local fallback.",
+      );
+    } catch (error) {
+      console.warn("Gemini prediction failed; using local fallback.", error);
+    }
+  }
 
   for (const product of products) {
     const dateSet = productDatesMap.get(product.normalizedName.toLowerCase());
