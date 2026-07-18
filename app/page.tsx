@@ -38,9 +38,9 @@ import {
   recalculatePredictions,
 } from "../lib/inventory/predictor";
 import { parseReceiptImage } from "../lib/image/upload";
-import type { ReviewItem } from "../lib/types/types";
 import { ParsedReceipt } from "../lib/types/parsed-receipt";
 import type { Household } from "../lib/types/household";
+import { ReviewItem } from "@/lib/types/review-item";
 
 type Item = {
   name: string;

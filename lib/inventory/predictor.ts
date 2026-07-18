@@ -1,6 +1,7 @@
 import { categoryEmoji } from "../categories";
-import type { Prediction, ProductRecord } from "../types/types";
+import type { Prediction } from "../types/prediction";
 import { db } from "../db/dexie";
+import { ProductRecord } from "../types/product-record";
 
 let cachedPredictions: Prediction[] = [];
 

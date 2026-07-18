@@ -1,8 +1,8 @@
 import { slugify } from "../slugify";
-import type { ReviewItem } from "../types/types";
 import { db } from "./dexie";
 import { updateProductsFromReceipt } from "./products";
 import { recalculatePredictions } from "../inventory/predictor";
+import { ReviewItem } from "../types/review-item";
 
 export async function saveReceipt(
   store: string,

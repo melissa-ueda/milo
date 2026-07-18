@@ -8,8 +8,8 @@ import {
   categoryLabels,
 } from "../lib/categories";
 import type { Category } from "../lib/categories";
-import type { ReviewItem } from "../lib/types/types";
 import { ParsedReceipt } from "../lib/types/parsed-receipt";
+import { ReviewItem } from "@/lib/types/review-item";
 
 type ReviewSheetProps = {
   receipt: ParsedReceipt;

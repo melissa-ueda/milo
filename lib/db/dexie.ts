@@ -1,9 +1,7 @@
 import Dexie, { type Table } from "dexie";
-import type {
-  ProductRecord,
-  ReceiptItemRecord,
-  ReceiptRecord,
-} from "../types/types";
+import { ReceiptRecord } from "../types/receipt-record";
+import { ReceiptItemRecord } from "../types/receipt-item-record";
+import { ProductRecord } from "../types/product-record";
 
 class MiloDatabase extends Dexie {
   receipts!: Table<ReceiptRecord>;

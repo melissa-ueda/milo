@@ -1,7 +1,8 @@
 import { slugify } from "../slugify";
 import type { Category } from "../categories";
-import type { ProductRecord, ReceiptItemRecord } from "../types/types";
 import { db } from "./dexie";
+import { ReceiptItemRecord } from "../types/receipt-item-record";
+import { ProductRecord } from "../types/product-record";
 
 export async function updateProductsFromReceipt(
   items: ReceiptItemRecord[],
