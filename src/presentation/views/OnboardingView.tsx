@@ -28,6 +28,9 @@ export function OnboardingView({
   onChange,
   onProfileComplete,
   onComplete,
+  onReceiptSelected,
+  isProcessingReceipt,
+  receiptError,
   geminiApiKey,
   setGeminiApiKey,
 }: {
@@ -37,6 +40,9 @@ export function OnboardingView({
   onChange: <K extends keyof Household>(field: K, value: Household[K]) => void;
   onProfileComplete: () => void;
   onComplete: (firstItem?: string) => void;
+  onReceiptSelected: (file: File) => void;
+  isProcessingReceipt: boolean;
+  receiptError?: string;
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
 }) {
@@ -51,7 +57,14 @@ export function OnboardingView({
       />
     );
   if (step === "first-item")
-    return <OnboardingFirstItem onComplete={onComplete} />;
+    return (
+      <OnboardingFirstItem
+        onComplete={onComplete}
+        onReceiptSelected={onReceiptSelected}
+        isProcessingReceipt={isProcessingReceipt}
+        receiptError={receiptError}
+      />
+    );
 
   return (
     <div className="flex min-h-screen flex-col px-6 pb-8 pt-8">
@@ -250,8 +263,14 @@ function OnboardingProfile({
 
 function OnboardingFirstItem({
   onComplete,
+  onReceiptSelected,
+  isProcessingReceipt,
+  receiptError,
 }: {
   onComplete: (firstItem?: string) => void;
+  onReceiptSelected: (file: File) => void;
+  isProcessingReceipt: boolean;
+  receiptError?: string;
 }) {
   const [mode, setMode] = useState<"choice" | "manual" | "receipt">("choice");
   const [name, setName] = useState("");
@@ -311,12 +330,20 @@ function OnboardingFirstItem({
             ✨
           </span>
           <h1 className="mt-7 text-3xl font-semibold tracking-tight">
-            Receipt ready to teach Milo
+            {isProcessingReceipt
+              ? "Analyzing your receipt"
+              : "Receipt ready to teach Milo"}
           </h1>
           <p className="mt-3 text-[15px] leading-6 text-[#67786e]">
-            We&apos;ll use your first receipt as the starting point for your
-            household inventory.
+            {isProcessingReceipt
+              ? "Milo is identifying products and quantities."
+              : "We'll use your first receipt as the starting point for your household inventory."}
           </p>
+          {receiptError && (
+            <p className="mt-4 rounded-xl bg-[#fdf1ef] p-3 text-left text-sm text-[#9d4a3d]">
+              {receiptError}
+            </p>
+          )}
         </div>
         <button
           onClick={() => onComplete()}
@@ -350,7 +377,13 @@ function OnboardingFirstItem({
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={() => setMode("receipt")}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            setMode("receipt");
+            onReceiptSelected(file);
+            event.target.value = "";
+          }}
         />
         <div className="mt-8 space-y-3">
           <button

@@ -170,6 +170,9 @@ export function App() {
         image: reviewImageBlob,
         lines: reviewItems,
       });
+      if (!settings.onboarded) {
+        await store.completeOnboarding(householdDraft);
+      }
       setReviewReceipt(null);
       setReviewItems([]);
       setReviewImageBlob(null);
@@ -203,9 +206,26 @@ export function App() {
           onComplete={(firstItem) =>
             void store.completeOnboarding(householdDraft, firstItem)
           }
+          onReceiptSelected={(file) => void handleFileSelected(file)}
+          isProcessingReceipt={isProcessingReceipt}
+          receiptError={receiptError}
           geminiApiKey={settings.geminiApiKey}
           setGeminiApiKey={(key) => void store.saveApiKey(key)}
         />
+        {reviewReceipt && (
+          <ReviewSheet
+            receipt={reviewReceipt}
+            items={reviewItems}
+            onItemsChange={setReviewItems}
+            onSave={handleSaveReceipt}
+            onClose={() => {
+              setReviewReceipt(null);
+              setReviewItems([]);
+              setReviewImageBlob(null);
+            }}
+            saving={savingReceipt}
+          />
+        )}
       </Shell>
     );
   }
