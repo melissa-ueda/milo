@@ -197,7 +197,6 @@ export function UploadModal({
                 type="file"
                 id="receipt-file-picker"
                 accept="image/*"
-                capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
               />
