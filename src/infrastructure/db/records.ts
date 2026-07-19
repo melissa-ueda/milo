@@ -28,7 +28,9 @@ export type ReceiptRow = {
   id: string;
   date: string;
   store: string;
-  image: Blob;
+  /** ArrayBuffer is more reliably persisted than Blob on iOS Safari. */
+  image: ArrayBuffer | Blob;
+  imageType?: string;
 };
 
 export type ReceiptLineRow = {
@@ -80,12 +82,22 @@ export function stapleFromRow(r: StapleRow): PantryStaple {
   };
 }
 
-export function receiptToRow(r: Receipt): ReceiptRow {
-  return { id: r.id, date: r.date, store: r.store, image: r.image };
+export function receiptToRow(r: Receipt, image: ArrayBuffer): ReceiptRow {
+  return {
+    id: r.id,
+    date: r.date,
+    store: r.store,
+    image,
+    imageType: r.image.type,
+  };
 }
 
 export function receiptFromRow(r: ReceiptRow): Receipt {
-  return { id: r.id, date: r.date, store: r.store, image: r.image };
+  const image =
+    r.image instanceof Blob
+      ? r.image
+      : new Blob([r.image], { type: r.imageType ?? "image/jpeg" });
+  return { id: r.id, date: r.date, store: r.store, image };
 }
 
 export function lineToRow(l: ReceiptLine): ReceiptLineRow {

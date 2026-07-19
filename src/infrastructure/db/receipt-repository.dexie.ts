@@ -12,8 +12,9 @@ export function createReceiptRepository(): ReceiptRepository {
   const db = getDb();
   return {
     async add(receipt: Receipt, lines: ReceiptLine[]): Promise<void> {
+      const image = await receipt.image.arrayBuffer();
       await db.transaction("rw", [db.receipts, db.receiptLines], async () => {
-        await db.receipts.add(receiptToRow(receipt));
+        await db.receipts.add(receiptToRow(receipt, image));
         await db.receiptLines.bulkAdd(lines.map(lineToRow));
       });
     },
