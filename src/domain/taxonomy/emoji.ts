@@ -104,9 +104,6 @@ export const PRODUCT_TYPE_EMOJI: Record<ProductType, string> = {
   lentils: "🫘",
   chickpeas: "🫘",
 
-  // Frozen
-  frozen: "🧊",
-
   // Snacks & Sweets
   chocolate: "🍫",
   cookie: "🍪",
@@ -142,6 +139,9 @@ export const PRODUCT_TYPE_EMOJI: Record<ProductType, string> = {
   // Pets
   pet_food: "🐶",
   cat_food: "🐱",
+
+  // Frozen
+  frozen: "🧊",
 
   other: "🛒",
 };

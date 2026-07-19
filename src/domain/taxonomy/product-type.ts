@@ -106,9 +106,6 @@ export const PRODUCT_TYPE_CODES = [
   "lentils",
   "chickpeas",
 
-  // Frozen
-  "frozen",
-
   // Snacks & Sweets
   "chocolate",
   "cookie",
@@ -144,6 +141,9 @@ export const PRODUCT_TYPE_CODES = [
   // Pets
   "pet_food",
   "cat_food",
+
+  // Frozen
+  "frozen",
 
   "other",
 ] as const;
