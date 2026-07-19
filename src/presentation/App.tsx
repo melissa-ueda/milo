@@ -165,15 +165,17 @@ export function App() {
     setSavingReceipt(true);
     setReceiptError("");
     try {
+      // Complete onboarding first so its initial empty refresh does not run
+      // again after saving the receipt and learning from its lines.
+      if (!settings.onboarded) {
+        await store.completeOnboarding(householdDraft);
+      }
       await store.saveReceipt({
         store: reviewReceipt.store,
         purchaseDate: reviewReceipt.purchaseDate,
         image: reviewImageBlob,
         lines: reviewItems,
       });
-      if (!settings.onboarded) {
-        await store.completeOnboarding(householdDraft);
-      }
       setReviewReceipt(null);
       setReviewItems([]);
       setReviewImageBlob(null);
