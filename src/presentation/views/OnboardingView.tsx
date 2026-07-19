@@ -6,6 +6,7 @@ import {
   Check,
   ChevronRight,
   Leaf,
+  LoaderCircle,
   Plus,
   Sparkles,
   Upload,
@@ -326,8 +327,15 @@ function OnboardingFirstItem({
       <div className="flex min-h-screen flex-col px-6 pb-8 pt-8">
         <Brand />
         <div className="flex flex-1 flex-col justify-center text-center">
-          <span className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-[#eef5eb] text-4xl">
-            ✨
+          <span
+            className={`mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-[#eef5eb] text-4xl ${isProcessingReceipt ? "text-[#28704c]" : ""}`}
+            aria-hidden="true"
+          >
+            {isProcessingReceipt ? (
+              <LoaderCircle size={34} className="animate-spin" />
+            ) : (
+              "✨"
+            )}
           </span>
           <h1 className="mt-7 text-3xl font-semibold tracking-tight">
             {isProcessingReceipt
@@ -347,9 +355,11 @@ function OnboardingFirstItem({
         </div>
         <button
           onClick={() => onComplete()}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1d5b45] px-5 py-4 text-base font-semibold text-white"
+          disabled={isProcessingReceipt}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1d5b45] px-5 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#b7c9ba]"
         >
-          Continue to Milo <ArrowRight size={18} />
+          {isProcessingReceipt ? "Analyzing receipt…" : "Continue to Milo"}
+          {!isProcessingReceipt && <ArrowRight size={18} />}
         </button>
       </div>
     );
