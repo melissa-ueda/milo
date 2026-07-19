@@ -163,6 +163,7 @@ export function App() {
   const handleSaveReceipt = async () => {
     if (!reviewReceipt || !reviewImageBlob) return;
     setSavingReceipt(true);
+    setReceiptError("");
     try {
       await store.saveReceipt({
         store: reviewReceipt.store,
@@ -180,7 +181,10 @@ export function App() {
         `${reviewItems.length} items added to your household intelligence.`,
       );
     } catch (error) {
-      notify(error instanceof Error ? error.message : "Failed to save receipt");
+      const message =
+        error instanceof Error ? error.message : "Failed to save receipt";
+      setReceiptError(message);
+      notify(message);
     } finally {
       setSavingReceipt(false);
     }
@@ -222,8 +226,10 @@ export function App() {
               setReviewReceipt(null);
               setReviewItems([]);
               setReviewImageBlob(null);
+              setReceiptError("");
             }}
             saving={savingReceipt}
+            error={receiptError}
           />
         )}
       </Shell>
@@ -379,8 +385,10 @@ export function App() {
             setReviewReceipt(null);
             setReviewItems([]);
             setReviewImageBlob(null);
+            setReceiptError("");
           }}
           saving={savingReceipt}
+          error={receiptError}
         />
       )}
       {detail && (

@@ -20,6 +20,7 @@ type ReviewSheetProps = {
   onSave: () => void;
   onClose: () => void;
   saving?: boolean;
+  error?: string;
 };
 
 export function ReviewSheet({
@@ -29,6 +30,7 @@ export function ReviewSheet({
   onSave,
   onClose,
   saving = false,
+  error,
 }: ReviewSheetProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -114,6 +116,11 @@ export function ReviewSheet({
           </div>
 
           <div className="border-t border-[#edf0eb] p-5 space-y-3">
+            {error && (
+              <p className="rounded-xl bg-[#fdf1ef] p-3 text-sm text-[#9d4a3d]">
+                {error}
+              </p>
+            )}
             <button
               onClick={onSave}
               disabled={saving || items.length === 0}
